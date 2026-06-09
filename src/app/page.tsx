@@ -104,7 +104,7 @@ export default function Home() {
 
   const handleWhatsApp = () => {
     if (!selectedProduct) return;
-    const phone = '5210000000000'; // Tu número real
+    const phone = '5213333916254'; // Tu número real
     
     let clientSelectionsText = '';
     fields.forEach(field => {
