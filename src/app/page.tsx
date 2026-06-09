@@ -2,9 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
-import Image from 'next/image';
 
-// Función para calcular la fecha mínima (hoy + 3 días)
 const getMinDate = () => {
   const date = new Date();
   date.setDate(date.getDate() + 3);
@@ -20,20 +18,18 @@ export default function Home() {
   const [formSelections, setFormSelections] = useState<Record<string, string>>({});
   const [totalPrice, setTotalPrice] = useState<number>(0);
   
-  // Estado para controlar el menú lateral en móviles
+  // === NUEVOS ESTADOS PARA EL CÓDIGO POSTAL ===
+  const [postalCode, setPostalCode] = useState('');
+  const [deliveryInfo, setDeliveryInfo] = useState<{ cost: number, found: boolean, checked: boolean } | null>(null);
+  const [isCheckingCP, setIsCheckingCP] = useState(false);
+
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  // Guardamos la fecha mínima restringida
   const minDate = getMinDate();
 
   useEffect(() => {
     const loadInitialData = async () => {
       setLoading(true);
-      const { data: productsData } = await supabase
-        .from('products')
-        .select('*')
-        .eq('status', 'Activo');
-      
+      const { data: productsData } = await supabase.from('products').select('*').eq('status', 'Activo');
       const loadedProducts = productsData || [];
       setProducts(loadedProducts);
 
@@ -42,17 +38,12 @@ export default function Home() {
       }
       setLoading(false);
     };
-
     loadInitialData();
   }, []);
 
-  // Bloquear el scroll del cuerpo cuando el menú está abierto
   useEffect(() => {
-    if (isMenuOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
+    if (isMenuOpen) document.body.style.overflow = 'hidden';
+    else document.body.style.overflow = 'unset';
     return () => { document.body.style.overflow = 'unset'; };
   }, [isMenuOpen]);
 
@@ -60,13 +51,13 @@ export default function Home() {
     setSelectedProduct(product);
     setTotalPrice(product.base_price);
     setFormSelections({});
+    // Reseteamos la info de envío al cambiar producto
+    setDeliveryInfo(null);
+    setPostalCode('');
 
     const { data: fieldsData } = await supabase
       .from('product_fields')
-      .select(`
-        id, label, type, placeholder,
-        field_options (id, label, preview_image, additional_price)
-      `)
+      .select(`id, label, type, placeholder, field_options (id, label, preview_image, additional_price)`)
       .eq('product_id', product.id)
       .order('sort_order', { ascending: true });
 
@@ -82,19 +73,38 @@ export default function Home() {
       if (field.type === 'select') {
         const selectedValue = updatedSelections[field.label];
         const optionObj = field.field_options?.find((o: any) => o.label === selectedValue);
-        if (optionObj) {
-          extraPrice += Number(optionObj.additional_price || 0);
-        }
+        if (optionObj) extraPrice += Number(optionObj.additional_price || 0);
       }
     });
 
     setTotalPrice((selectedProduct?.base_price || 0) + extraPrice);
   };
 
+  // === FUNCIÓN PARA VERIFICAR EL CP ===
+  const handleCheckCP = async () => {
+    if (!postalCode || postalCode.trim() === '') return;
+    setIsCheckingCP(true);
+    
+    const { data, error } = await supabase
+      .from('delivery_zones')
+      .select('*')
+      .eq('postal_code', postalCode.trim())
+      .single();
+
+    if (data) {
+      setDeliveryInfo({ cost: data.cost, found: true, checked: true });
+    } else {
+      setDeliveryInfo({ cost: 0, found: false, checked: true });
+    }
+    setIsCheckingCP(false);
+  };
+
+  // Calculamos el Gran Total (Producto + Opciones + Envío)
+  const finalTotal = totalPrice + (deliveryInfo?.found ? deliveryInfo.cost : 0);
+
   const handleWhatsApp = () => {
     if (!selectedProduct) return;
-
-    const phone = '5210000000000'; // Tu número real de WhatsApp
+    const phone = '5210000000000'; // Tu número real
     
     let clientSelectionsText = '';
     fields.forEach(field => {
@@ -103,70 +113,49 @@ export default function Home() {
         let priceTag = '';
         if (field.type === 'select') {
           const opt = field.field_options?.find((o:any) => o.label === val);
-          if (opt && opt.additional_price > 0) priceTag = ` (+ $${opt.additional_price} MXN)`;
+          if (opt && opt.additional_price > 0) priceTag = ` (+ $${opt.additional_price})`;
         }
         clientSelectionsText += `• *${field.label}:* ${val}${priceTag}%0A`;
       }
     });
 
-    const message = `¡Hola! Me interesa cotizar un pedido personalizado desde la página web. 🛒%0A%0A` +
+    const shippingText = deliveryInfo?.found 
+      ? `🚚 *Envío (CP ${postalCode}):* $${deliveryInfo.cost} MXN%0A` 
+      : `🚚 *Envío:* Por cotizar / Recolección%0A`;
+
+    const message = `¡Hola! Me interesa cotizar un pedido personalizado. 🛒%0A%0A` +
       `📦 *Producto:* ${selectedProduct.name}%0A` +
-      `💰 *Precio Estimado:* $${totalPrice} MXN%0A%0A` +
       `✨ *Personalización:*%0A${clientSelectionsText}%0A` +
-      `Por favor me confirman disponibilidad y tiempos de entrega.`;
+      `${shippingText}` +
+      `💰 *TOTAL ESTIMADO:* $${finalTotal} MXN%0A%0A` +
+      `Por favor me confirman disponibilidad.`;
 
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
   return (
     <main>
-      {/* 1. BARRA DE ANUNCIOS SUPERIOR (Estilo Scatola) */}
       <div className="anuncio text-white text-xs md:text-sm text-center py-2 font-medium tracking-wide">
         ¡Regalos increíbles y personalizados para todos!
       </div>
 
-      {/* 2. HEADER PRINCIPAL */}
       <header className="bg-white sticky top-0 z-40 shadow-sm border-b border-gray-100">
         <div className="flex justify-between items-center px-4 md:px-8 py-3 md:py-4 max-w-7xl mx-auto">
-          
-          {/* IZQUIERDA: Menú Hamburguesa (Móvil) o Buscador (Desktop) */}
           <div className="flex-1 flex items-center justify-start">
-            <button 
-              className="md:hidden p-2 -ml-2 text-gray-700 hover:text-amber-800 transition-colors"
-              onClick={() => setIsMenuOpen(true)}
-              aria-label="Abrir menú"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-              </svg>
+            <button className="md:hidden p-2 -ml-2 text-gray-700 hover:text-amber-800 transition-colors" onClick={() => setIsMenuOpen(true)}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-7 h-7"><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
             </button>
-            {/*<button className="hidden md:flex items-center text-gray-400 hover:text-pink-500 transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-              </svg>
-            </button>*/}
           </div>
-
-          {/* CENTRO: Logo */}
           <div className="flex-1 flex justify-center">
-            <a href="#">
-              <img src={"/logo.png"} alt='Momentiva' className="w-32 md:w-40 h-auto object-contain" />
-            </a>
+            <a href="#"><img src="/logo.png" alt="Momentiva" className="w-32 md:w-40 h-auto object-contain" /></a>
           </div>
-
-          {/* DERECHA: Ícono de Bolsa de Regalo (Estilo Tienda) */}
           <div className="flex-1 flex justify-end items-center gap-4">
              <button onClick={handleWhatsApp} className="text-gray-700 hover:text-amber-800 transition-colors flex items-center gap-2">
                <span className="hidden md:block text-sm font-bold">Pedido</span>
-               {/* Ícono de Bolsa */}
-               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-               </svg>
+               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" /></svg>
              </button>
           </div>
         </div>
-
-        {/* 3. NAVEGACIÓN DESKTOP (Solo visible en computadora, debajo del logo) */}
         <nav className="hidden md:flex justify-center gap-10 py-3 border-t border-gray-50 text-[13px] font-extrabold text-gray-700 tracking-widest uppercase">
           <a href="#productos" className="hover:text-amber-800 transition-colors">Productos</a>
           <a href="#personaliza" className="hover:text-amber-800 transition-colors">Personaliza</a>
@@ -174,48 +163,27 @@ export default function Home() {
         </nav>
       </header>
 
-      {/* 4. OVERLAY Y MENÚ LATERAL MÓVIL (DESLIZA DESDE LA IZQUIERDA COMO SCATOLA) */}
-      <div 
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={() => setIsMenuOpen(false)}
-      />
+      <div className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-opacity duration-300 md:hidden ${isMenuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'}`} onClick={() => setIsMenuOpen(false)} />
       
       <div className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-white shadow-2xl z-50 transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 flex justify-between items-center border-b border-gray-100">
-          <img src={"/logo.png"} alt='Momentiva' />
-          <button 
-            onClick={() => setIsMenuOpen(false)}
-            className="p-2 text-gray-400 hover:text-amber-800 bg-gray-50 rounded-full transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
+          <img src="/logo.png" alt="Momentiva" className="h-12 w-auto object-contain" />
+          <button onClick={() => setIsMenuOpen(false)} className="p-2 text-gray-400 hover:text-amber-800 bg-gray-50 rounded-full transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-        
         <nav className="flex flex-col overflow-y-auto">
-          <a href="#productos" onClick={() => setIsMenuOpen(false)} className="py-4 px-6 font-bold text-gray-700 text-sm uppercase tracking-widest border-b border-gray-50 hover:bg-red-50 hover:text-amber-800 transition-colors">
-            Productos
-          </a>
-          <a href="#personaliza" onClick={() => setIsMenuOpen(false)} className="py-4 px-6 font-bold text-gray-700 text-sm uppercase tracking-widest border-b border-gray-50 hover:bg-red-50 hover:text-amber-800 transition-colors">
-            Personaliza
-          </a>
-          <a href="#como-funciona" onClick={() => setIsMenuOpen(false)} className="py-4 px-6 font-bold text-gray-700 text-sm uppercase tracking-widest border-b border-gray-50 hover:bg-red-50 hover:text-amber-800 transition-colors">
-            Cómo realizar tu pedido
-          </a>
+          <a href="#productos" onClick={() => setIsMenuOpen(false)} className="py-4 px-6 font-bold text-gray-700 text-sm uppercase tracking-widest border-b border-gray-50 hover:bg-red-50 hover:text-amber-800 transition-colors">Productos</a>
+          <a href="#personaliza" onClick={() => setIsMenuOpen(false)} className="py-4 px-6 font-bold text-gray-700 text-sm uppercase tracking-widest border-b border-gray-50 hover:bg-red-50 hover:text-amber-800 transition-colors">Personaliza</a>
+          <a href="#como-funciona" onClick={() => setIsMenuOpen(false)} className="py-4 px-6 font-bold text-gray-700 text-sm uppercase tracking-widest border-b border-gray-50 hover:bg-red-50 hover:text-amber-800 transition-colors">Cómo realizar tu pedido</a>
         </nav>
-
         <div className="mt-auto p-6 bg-gray-50">
-          <a href="#personaliza" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center w-full py-4 bg-amber-800 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform uppercase tracking-wider text-sm">
-            Personalizar pedido
-          </a>
+          <a href="#personaliza" onClick={() => setIsMenuOpen(false)} className="flex items-center justify-center w-full py-4 bg-amber-800 text-white font-bold rounded-xl shadow-lg active:scale-95 transition-transform uppercase tracking-wider text-sm">Personalizar pedido</a>
         </div>
       </div>
 
-      {/* HERO SECTION */}
       <section className="hero">
         <div>
-          {/*<div className="kicker">Party boxes y globos con regalos personalizados</div>*/}
           <h1>Momentos para <span className="gradient">celebrar</span></h1>
           <p>Creamos globos burbuja personalizados para cualquier celebración. Personaliza colores, frases, regalos y crea un momento inolvidable.</p>
           <div className="hero-actions">
@@ -230,20 +198,18 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CÓMO FUNCIONA */}
       <section id="como-funciona">
         <div className="section-title">
           <h2>Cómo realizar tu pedido</h2>
         </div>
         <div className="steps">
-          <div className="step"><div className="num">1</div><strong>Personaliza</strong><p>Selecciona tu producto base, escribe tus frases y elige tus colores o peluches favoritos.</p></div>
-          <div className="step"><div className="num">2</div><strong>Confirmamos</strong><p>Validamos contigo el precio final recalculado, la fecha exacta de entrega y stock por WhatsApp.</p></div>
-          <div className="step"><div className="num">3</div><strong>Producimos</strong><p>Armamos minuciosamente tu regalo con los viniles, moños y detalles acordados.</p></div>
-          <div className="step"><div className="num">4</div><strong>Entregamos</strong><p>Coordinamos el envío directo a domicilio o recolección personal según el horario establecido.</p></div>
+          <div className="step"><div className="num">1</div><strong>Personaliza</strong><p>Selecciona tu producto base, escribe tus frases y elige tus colores.</p></div>
+          <div className="step"><div className="num">2</div><strong>Confirmamos</strong><p>Validamos el precio final, la fecha de entrega y stock por WhatsApp.</p></div>
+          <div className="step"><div className="num">3</div><strong>Producimos</strong><p>Armamos minuciosamente tu regalo con los detalles acordados.</p></div>
+          <div className="step"><div className="num">4</div><strong>Entregamos</strong><p>Coordinamos el envío a domicilio o recolección personal.</p></div>
         </div>
       </section>
 
-      {/* CATÁLOGO DINÁMICO */}
       <section id="productos">
         <div className="section-title">
           <h2>Elige tu tipo de globo</h2>
@@ -264,7 +230,7 @@ export default function Home() {
                     <span className="text-green-600 font-extrabold text-sm bg-green-50 px-2 py-1 rounded-md whitespace-nowrap">Desde ${product.base_price}</span>
                   </div>
                   <p className="text-sm text-gray-500">{product.description}</p>
-                  <a href="#personaliza" className="btn rounded-full bg-[#c99598] text-white hover:bg-[#71402a] transition-colors w-full text-center mt-2">Configurar este</a>
+                  <a href="#personaliza" className="btn rounded-full bg-[#c99598] text-white hover:bg-[#71402a] transition-colors w-full text-center mt-2">Personalizar</a>
                 </div>
               </article>
             ))
@@ -272,11 +238,10 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CONFIGURADOR FORMULARIO INTERACTIVO */}
       <section id="personaliza">
         <div className="section-title">
           <h2>Arma tu pedido</h2>
-          <p>Este formulario funciona como simulador de pedido. La información puede enviarse por WhatsApp para confirmar precio, disponibilidad y fecha de entrega.</p>
+          <p>Este formulario funciona como simulador de pedido. La información puede enviarse por WhatsApp para confirmar.</p>
         </div>
 
         <div className="customizer">
@@ -300,19 +265,9 @@ export default function Home() {
                       <div key={field.id} className={`flex flex-col gap-2 ${field.type === 'textarea' ? 'sm:col-span-2' : ''}`}>
                         <label className="font-extrabold text-gray-900 text-sm flex flex-col gap-2">
                           {field.label}
-                          
-                          {field.type === 'text' && (
-                            <input value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} placeholder={field.placeholder || "Escribe aquí..."} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] font-normal w-full" />
-                          )}
-
-                          {field.type === 'date' && (
-                            <input type="date" min={minDate} value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] font-normal w-full cursor-pointer" />
-                          )}
-
-                          {field.type === 'textarea' && (
-                            <textarea value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} placeholder={field.placeholder || "Detalles..."} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] min-h-[80px] resize-y font-normal w-full" />
-                          )}
-
+                          {field.type === 'text' && <input value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} placeholder={field.placeholder || "Escribe aquí..."} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] font-normal w-full" />}
+                          {field.type === 'date' && <input type="date" min={minDate} value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] font-normal w-full cursor-pointer" />}
+                          {field.type === 'textarea' && <textarea value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} placeholder={field.placeholder || "Detalles..."} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] min-h-[80px] resize-y font-normal w-full" />}
                           {field.type === 'select' && (
                             <div className="flex flex-col gap-3">
                               <select value={selectedValue || ''} onChange={(e) => handleOptionChange(field.label, e.target.value)} className="border border-gray-200 rounded-2xl p-3 bg-gray-50 outline-none focus:border-[#71402a] font-normal w-full">
@@ -323,7 +278,6 @@ export default function Home() {
                                   </option>
                                 ))}
                               </select>
-                              
                               {selectedOptionData?.preview_image && (
                                 <div className="flex items-center gap-3 bg-pink-50/50 p-2 rounded-xl border border-[#bd7e71] w-fit transition-all">
                                   <img src={selectedOptionData.preview_image} alt={selectedValue} className="w-12 h-12 object-cover rounded-lg shadow-sm border border-white" />
@@ -336,36 +290,73 @@ export default function Home() {
                       </div>
                     );
                   })}
+                  
+                  {/* === SECCIÓN VERIFICAR COBERTURA === */}
+                  <div className="sm:col-span-2 bg-[#fffaf6] border border-[#e4d1c7] rounded-3xl p-5 mt-4">
+                    <label className="font-extrabold text-[#71402a] text-sm flex flex-col gap-2 mb-3">
+                      Verificar cobertura de envío
+                      <p className="text-xs text-gray-500 font-normal m-0">Ingresa el CP a donde vas a enviar tu regalo para cotizar la entrega.</p>
+                    </label>
+                    <div className="flex gap-2">
+                      <input 
+                        type="text" 
+                        maxLength={5}
+                        placeholder="Ej. 44100" 
+                        value={postalCode}
+                        onChange={(e) => setPostalCode(e.target.value.replace(/\D/g, ''))}
+                        className="border border-[#e4d1c7] rounded-xl p-3 bg-white outline-none focus:border-[#71402a] flex-1 text-sm font-bold" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={handleCheckCP}
+                        disabled={isCheckingCP || postalCode.length < 4}
+                        className="bg-[#c99598] hover:bg-[#71402a] text-white font-bold px-6 py-3 rounded-xl transition-colors disabled:opacity-50 text-sm"
+                      >
+                        {isCheckingCP ? 'Validando...' : 'Verificar'}
+                      </button>
+                    </div>
+                    
+                    {/* MENSAJE DE RESULTADO DEL CP */}
+                    {deliveryInfo?.checked && (
+                      <div className={`mt-4 p-3 rounded-xl text-sm font-semibold flex items-center gap-2 ${deliveryInfo.found ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                        {deliveryInfo.found 
+                          ? `✅ ¡Sí entregamos en tu zona! Costo de envío: $${deliveryInfo.cost} MXN.` 
+                          : `⚠️ Lo sentimos, no tenemos cobertura en el CP ${postalCode}. Puedes recoger tu pedido en nuestra ubicación base.`}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
               )}
 
-              <button className="btn w-full mt-8" type="button" onClick={handleWhatsApp} disabled={!selectedProduct}>
-                Enviar pedido por WhatsApp · ${totalPrice} MXN
+              <button className="btn secondary hover:bg-[#71402a] hover:text-white transition-colors w-full mt-8" type="button" onClick={handleWhatsApp} disabled={!selectedProduct}>
+                Enviar pedido por WhatsApp · ${finalTotal} MXN
               </button>
             </form>
           </div>
 
-          {/* ASIDE DE RESUMEN DE COMPRA */}
           <aside className="preview">
             <h3 className="mb-4 text-xl font-bold">Resumen de tu diseño</h3>
             <div className="bg-white rounded-[26px] p-5 shadow-[0_12px_26px_rgba(70,35,90,0.08)]">
-              <div 
-                className="h-[320px] rounded-[22px] bg-cover bg-center mb-5 border border-gray-200" 
-                style={{ backgroundImage: selectedProduct?.card_image ? `url(${selectedProduct.card_image})` : 'none' }}
-              >
+              <div className="h-[320px] rounded-[22px] bg-cover bg-center mb-5 border border-gray-200" style={{ backgroundImage: selectedProduct?.card_image ? `url(${selectedProduct.card_image})` : 'none' }}>
                 {!selectedProduct?.card_image && <div className="h-full flex items-center justify-center text-gray-300 text-sm">Sin imagen</div>}
               </div>
-              
               <div className="flex flex-col gap-2 text-sm text-gray-600 leading-relaxed">
                 <p className="m-0"><b className="text-gray-900">Modelo:</b> {selectedProduct?.name}</p>
                 <div className="border-t border-gray-100 pt-2 mt-1 flex flex-col gap-1.5">
                   {Object.entries(formSelections).map(([label, val]) => (
                     val && <div key={label} className="text-xs"><b>{label}:</b> {val}</div>
                   ))}
+                  {/* Mostrar info de envío en el resumen si existe */}
+                  {deliveryInfo?.checked && (
+                    <div className="text-xs mt-2 text-[#71402a] bg-[#fffaf6] p-2 rounded-lg border border-[#e4d1c7]">
+                      <b>Envío a CP {postalCode}:</b> {deliveryInfo.found ? `+$${deliveryInfo.cost} MXN` : 'Sin cobertura (Recolección)'}
+                    </div>
+                  )}
                 </div>
                 <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between items-center text-gray-900">
                   <b>Total estimado:</b>
-                  <span className="text-lg font-black text-[#71402a]">${totalPrice} MXN</span>
+                  <span className="text-lg font-black text-[#71402a]">${finalTotal} MXN</span>
                 </div>
               </div>
             </div>
@@ -373,7 +364,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* FOOTER */}
       <footer className="text-center text-gray-500 py-8">
         © 2026 MomentiVA · Momentos para celebrar
       </footer>
