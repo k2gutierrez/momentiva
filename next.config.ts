@@ -9,7 +9,8 @@ const nextConfig: NextConfig = {
         port: '',
       }
     ]
-  }
+  },
+  output: "standalone",
 };
 
 export default nextConfig;
