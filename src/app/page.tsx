@@ -264,7 +264,7 @@ export default function Home() {
                     <span className="text-green-600 font-extrabold text-sm bg-green-50 px-2 py-1 rounded-md whitespace-nowrap">Desde ${product.base_price}</span>
                   </div>
                   <p className="text-sm text-gray-500">{product.description}</p>
-                  <a href="#personaliza" className="btn w-full text-center mt-2">Configurar este</a>
+                  <a href="#personaliza" className="btn rounded-full bg-[#c99598] text-white hover:bg-[#71402a] transition-colors w-full text-center mt-2">Configurar este</a>
                 </div>
               </article>
             ))
