@@ -239,7 +239,7 @@ export default function AdminPage() {
       <div className="min-h-screen bg-[#f4eae0] flex items-center justify-center p-4">
         <div className="bg-white p-8 md:p-10 rounded-[32px] shadow-[0_18px_45px_rgba(113,64,42,0.14)] w-full max-w-md">
           <div className="flex justify-center mb-8">
-            <Image src={"/logo.png"} width={200} height={100} alt='Momentiva' className="h-16 w-auto object-contain" />
+            <img src={"/logo.png"} alt='Momentiva' className="h-16 w-auto object-contain" />
           </div>
           <h2 className="text-2xl font-black text-center text-[#71402a] mb-2">Acceso Administrativo</h2>
           <p className="text-center text-[#c99598] text-sm mb-8 font-semibold">Ingresa tus credenciales para continuar</p>
@@ -293,7 +293,7 @@ export default function AdminPage() {
       {/* SIDEBAR */}
       <aside className="w-full md:w-64 bg-white border-r border-[#e4d1c7] p-6 flex flex-col">
         <div className="mb-10">
-          <Image src={"/logo.png"} width={150} height={80} alt='Momentiva' className="h-10 w-auto object-contain" />
+          <img src={"/logo.png"} alt='Momentiva' className="h-10 w-auto object-contain" />
           <div className="text-xs font-bold text-[#c99598] mt-2 uppercase tracking-wider">Panel Admin</div>
         </div>
         <nav className="flex flex-col gap-4 flex-1">

@@ -150,7 +150,7 @@ export default function Home() {
           {/* CENTRO: Logo */}
           <div className="flex-1 flex justify-center">
             <a href="#">
-              <Image src={"/logo.png"} width={400} height={250} alt='Momentiva' className="w-32 md:w-40 h-auto object-contain" />
+              <img src={"/logo.png"} alt='Momentiva' className="w-32 md:w-40 h-auto object-contain" />
             </a>
           </div>
 
@@ -182,7 +182,7 @@ export default function Home() {
       
       <div className={`fixed top-0 left-0 h-full w-[85%] max-w-sm bg-white shadow-2xl z-50 transform transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] md:hidden flex flex-col ${isMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 flex justify-between items-center border-b border-gray-100">
-          <Image src={"/logo.png"} alt='Momentiva' height={200} width={200} />
+          <img src={"/logo.png"} alt='Momentiva' />
           <button 
             onClick={() => setIsMenuOpen(false)}
             className="p-2 text-gray-400 hover:text-amber-800 bg-gray-50 rounded-full transition-colors"
@@ -257,7 +257,7 @@ export default function Home() {
           ) : (
             products.map((product) => (
               <article key={product.id} className={`product-card cursor-pointer transition-all ${selectedProduct?.id === product.id ? 'ring-4 ring-[#71402a] scale-[1.01]' : ''}`} onClick={() => handleProductChange(product)}>
-                {product.card_image && <Image src={product.card_image} alt={product.name} width={100} height={100} className="w-full h-auto object-cover" />}
+                {product.card_image && <img src={product.card_image} alt={product.name} className="w-full h-auto object-cover" />}
                 <div className="product-body">
                   <div className="flex justify-between items-start mb-2 gap-2">
                     <h3 className="m-0 text-xl">{product.name}</h3>
