@@ -1,20 +1,24 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Nunito, Caveat } from "next/font/google"; // Using Caveat as the handwriting font
 import "./globals.css";
+import { Provider as JotaiProvider } from 'jotai';
+import { Toaster } from 'sonner';
+import AuthProvider from "@/components/AuthProvider";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Initialize fonts
+const nunito = Nunito({
   subsets: ["latin"],
+  variable: '--font-nunito'
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const caveat = Caveat({
   subsets: ["latin"],
+  variable: '--font-handwriting'
 });
 
 export const metadata: Metadata = {
-  title: "Momentiva | Globos y Regalos Personalizados",
-  description: "Creamos globos burbuja y party boxes personalizadas en Guadalajara.",
+  title: "Momentiva | Cada regalo, un momento inolvidable",
+  description: "Regalos personalizados y repostería en Guadalajara",
 };
 
 export default function RootLayout({
@@ -23,11 +27,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html lang="es">
+      <body className={`${nunito.variable} ${caveat.variable} font-sans bg-cream text-berenjena antialiased`}>
+        <JotaiProvider>
+          <AuthProvider>
+            {children}
+            {/* Sonner Toaster for DB operation notifications[cite: 1] */}
+          </AuthProvider>
+          <Toaster position="bottom-right" richColors />
+        </JotaiProvider>
+      </body>
     </html>
   );
 }
