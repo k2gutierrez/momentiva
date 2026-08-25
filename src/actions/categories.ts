@@ -42,3 +42,36 @@ export async function deleteCategory(id: string) {
   revalidatePath("/admin/categories");
   return { success: true };
 }
+
+export async function updateCategory(id: string, formData: FormData) {
+  const supabase = await createClient();
+
+  try {
+    const name = formData.get("name") as string;
+    const description = formData.get("description") as string;
+
+    if (!name) throw new Error("El nombre es obligatorio");
+
+    const slug = name
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "")
+      .replace(/[\s_-]+/g, "-");
+
+    const { error } = await supabase
+      .from("categories")
+      .update({
+        name,
+        slug,
+        description,
+      })
+      .eq("id", id);
+
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/admin/categories");
+    return { success: true };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}
