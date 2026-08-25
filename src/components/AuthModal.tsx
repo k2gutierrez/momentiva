@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { authModalOpenAtom, userAtom, userProfileAtom } from "@/store/authStore";
-import { XIcon, EnvelopeIcon, LockIcon, UserIcon } from "@phosphor-icons/react/dist/ssr";
+import { XIcon, EnvelopeIcon, LockIcon, UserIcon as UserIcon, CalendarIcon } from "@phosphor-icons/react/dist/ssr";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ export default function AuthModal() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
+  const [birthdate, setBirthdate] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -31,27 +32,22 @@ export default function AuthModal() {
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            data: {
+              full_name: fullName,
+              birthdate: birthdate || null,
+            },
+          },
         });
 
         if (signUpError) throw signUpError;
 
         if (authData.user) {
-          // Create profile record in public.profiles
-          const { error: profileError } = await supabase.from("profiles").insert({
-            id: authData.user.id,
-            full_name: fullName,
-            email: email,
-            role: "client",
-          });
-
-          if (profileError) console.error("Error creating profile:", profileError.message);
-
-          // Update Jotai state instantly
           setUser(authData.user);
           setProfile({ full_name: fullName, role: "client" });
           
           toast.success("¡Registro exitoso! Bienvenido a Momentiva.");
-          setIsOpen(false); // Close Modal
+          setIsOpen(false);
         }
       } else {
         // --- LOGIN ---
@@ -63,19 +59,17 @@ export default function AuthModal() {
         if (signInError) throw signInError;
 
         if (authData.user) {
-          // Fetch user profile immediately
           const { data: profile } = await supabase
             .from("profiles")
             .select("full_name, role")
             .eq("id", authData.user.id)
             .single();
 
-          // Update Jotai state instantly
           setUser(authData.user);
           setProfile(profile || { full_name: authData.user.email || "", role: "client" });
 
           toast.success("Sesión iniciada correctamente");
-          setIsOpen(false); // Close Modal
+          setIsOpen(false);
         }
       }
     } catch (error: any) {
@@ -111,20 +105,36 @@ export default function AuthModal() {
         <form onSubmit={handleAuth} className="p-8 pt-2 space-y-4">
           
           {isRegistering && (
-            <div>
-              <label className="block text-sm font-bold text-berenjena mb-1">Nombre Completo</label>
-              <div className="relative flex items-center">
-                <UserIcon size={20} className="absolute left-3 text-sage" />
-                <input 
-                  type="text" 
-                  required
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Tu nombre"
-                  className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
-                />
+            <>
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Nombre Completo</label>
+                <div className="relative flex items-center">
+                  <UserIcon size={20} className="absolute left-3 text-sage" />
+                  <input 
+                    type="text" 
+                    required
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    placeholder="Tu nombre completo"
+                    className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
+                  />
+                </div>
               </div>
-            </div>
+
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Fecha de Nacimiento</label>
+                <div className="relative flex items-center">
+                  <CalendarIcon size={20} className="absolute left-3 text-sage" />
+                  <input 
+                    type="date" 
+                    required
+                    value={birthdate}
+                    onChange={(e) => setBirthdate(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
+                  />
+                </div>
+              </div>
+            </>
           )}
 
           <div>

@@ -1,18 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { useAtom, useSetAtom } from "jotai";
+import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import { authModalOpenAtom, userAtom, userProfileAtom } from "@/store/authStore";
 import { ShoppingCartIcon, UserIcon, ShieldCheckIcon, SignOutIcon, HeartIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
+import { cartOpenAtom, cartTotalCountAtom } from "@/store/cartStore";
 
 export default function Header() {
   const setAuthModalOpen = useSetAtom(authModalOpenAtom);
   const [user] = useAtom(userAtom);
   const [profile] = useAtom(userProfileAtom);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const setCartOpen = useSetAtom(cartOpenAtom);
+  const cartCount = useAtomValue(cartTotalCountAtom);
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -30,14 +34,14 @@ export default function Header() {
           cada regalo, un momento inolvidable
         </span>
       </Link>
-      
+
       {/* Navigation & Actions */}
       <div className="flex items-center gap-6">
-        
+
         {/* ADMIN PANEL BUTTON (Visible only if user profile is admin) */}
         {profile?.role === "admin" && (
-          <Link 
-            href="/admin" 
+          <Link
+            href="/admin"
             className="flex items-center gap-2 bg-berenjena text-lilaPastel hover:bg-opacity-90 px-4 py-2 rounded-full transition-colors font-bold text-sm shadow-sm"
           >
             <ShieldCheckIcon size={20} weight="fill" className="text-sage" />
@@ -53,16 +57,19 @@ export default function Header() {
         )}
 
         {/* Cart Button */}
-        <button className="flex items-center gap-2 bg-sage/10 text-sage hover:bg-sage/20 px-4 py-2 rounded-full transition-colors font-bold">
+        <button
+          onClick={() => setCartOpen(true)}
+          className="flex items-center gap-2 bg-sage/10 text-sage hover:bg-sage/20 px-4 py-2 rounded-full transition-colors font-bold relative"
+        >
           <ShoppingCartIcon size={24} weight="light" />
-          <span>(0)</span>
+          <span>({cartCount})</span>
         </button>
 
         {/* AUTH STATE BUTTONS */}
         {user ? (
           /* Logged In State: Avatar / Dropdown */
           <div className="relative">
-            <button 
+            <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="flex items-center gap-2 text-berenjena font-bold hover:text-terracota transition-colors focus:outline-none"
             >
@@ -81,8 +88,8 @@ export default function Header() {
                   <p className="text-xs text-gray-400">Iniciado como</p>
                   <p className="text-sm font-bold text-berenjena truncate">{user.email}</p>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-2 text-sm text-red-500 font-bold hover:bg-red-50 flex items-center gap-2 transition-colors mt-1"
                 >
@@ -94,7 +101,7 @@ export default function Header() {
           </div>
         ) : (
           /* Logged Out State: Open Auth Modal */
-          <button 
+          <button
             onClick={() => setAuthModalOpen(true)}
             className="flex items-center gap-2 text-berenjena hover:text-terracota transition-colors font-bold"
           >

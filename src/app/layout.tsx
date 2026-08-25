@@ -4,6 +4,7 @@ import "./globals.css";
 import { Provider as JotaiProvider } from 'jotai';
 import { Toaster } from 'sonner';
 import AuthProvider from "@/components/AuthProvider";
+import CartDrawer from "@/components/CartDrawer";
 
 // Initialize fonts
 const nunito = Nunito({
@@ -31,10 +32,11 @@ export default function RootLayout({
       <body className={`${nunito.variable} ${caveat.variable} font-sans bg-cream text-berenjena antialiased`}>
         <JotaiProvider>
           <AuthProvider>
+            <CartDrawer />
+            <Toaster position="bottom-right" richColors />
             {children}
             {/* Sonner Toaster for DB operation notifications[cite: 1] */}
           </AuthProvider>
-          <Toaster position="bottom-right" richColors />
         </JotaiProvider>
       </body>
     </html>
