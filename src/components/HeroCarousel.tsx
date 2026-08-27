@@ -92,14 +92,14 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
             <div className="absolute inset-0 bg-gradient-to-r from-berenjena/90 via-berenjena/60 to-transparent"></div>
 
             {/* Slide Content Overlay */}
-            <div className="absolute inset-0 max-w-7xl mx-auto px-8 flex items-center">
+            <div className="absolute inset-0 max-w-7xl mx-auto px-8 flex items-end mb-10">
               <div className="max-w-xl space-y-6 text-left">
-                {slide.title && (
+                {/*slide.title && (
                   <span className="inline-block bg-terracota/30 text-lilaPastel border border-terracota/40 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
                     {slide.title}
                   </span>
-                )}
-                <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-cream leading-tight">
+                )*/}
+                {/*<h2 className="text-4xl md:text-6xl font-bold tracking-tight text-cream leading-tight">
                   Cada regalo, un{" "}
                   <span className="text-lilaPastel font-handwriting text-5xl md:text-7xl block mt-1">
                     momento inolvidable
@@ -107,7 +107,7 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
                 </h2>
                 <p className="text-base md:text-lg text-lilaPastel/90 leading-relaxed drop-shadow">
                   Sorprende con productos hechos a la medida, entregados directo en Guadalajara, Zapopan y Tlajomulco.
-                </p>
+                </p>*/}
                 <div className="flex flex-wrap gap-4 pt-2">
                   <a
                     href="#catalog"

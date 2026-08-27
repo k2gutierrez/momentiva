@@ -54,7 +54,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
                   isActive 
                     ? "bg-lilaPastel text-berenjena font-bold shadow-sm" 
-                    : "hover:bg-white/10 hover:text-white"
+                    : "hover:bg-white/10 text-white hover:text-white"
                 }`}
               >
                 <Icon size={22} weight={isActive ? "fill" : "light"} />

@@ -29,10 +29,11 @@ export default function Header() {
     <header className="bg-white px-8 py-5 shadow-sm sticky top-0 z-40 border-b border-lilaPastel flex justify-between items-center">
       {/* Brand Logo */}
       <Link href="/" className="flex flex-col">
-        <h1 className="text-3xl font-bold text-berenjena tracking-tight">Momentiva</h1>
+        {/*<h1 className="text-3xl font-bold text-berenjena tracking-tight">Momentiva</h1>
         <span className="text-sage font-handwriting text-lg leading-none -mt-1">
           cada regalo, un momento inolvidable
-        </span>
+        </span>*/}
+        <img src={"/logo.png"} alt="Momentiva" width={200} height={60} />
       </Link>
 
       {/* Navigation & Actions */}
