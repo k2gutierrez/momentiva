@@ -158,7 +158,7 @@ export default async function Home() {
             <h4 className="text-2xl font-bold text-cream mb-1">Momentiva</h4>
             <p className="text-sage font-handwriting text-xl mb-4">cada regalo, un momento inolvidable</p>
             <p className="text-xs text-lilaPastel/70 leading-relaxed">
-              Tienda en línea especializada en regalos personalizados, postres artesanales y experiencias inolvidables con entrega en la Zona Metropolitana de Guadalajara.
+              Momentos que se quedan por más tiempo. Regalos personalizados y globos burbuja con aire —no helio— que acompañan tus celebraciones por semanas. Entregamos en Guadalajara, Zapopan y Tlajomulco de Zúñiga.
             </p>
           </div>
 

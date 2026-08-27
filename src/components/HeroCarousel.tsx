@@ -89,7 +89,7 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
               alt={slide.title || "Banner Momentiva"}
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-berenjena/90 via-berenjena/60 to-transparent"></div>
+            <div className="absolute inset-0"></div>
 
             {/* Slide Content Overlay */}
             <div className="absolute inset-0 max-w-7xl mx-auto px-8 flex items-end mb-10">
@@ -119,7 +119,7 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
                     href="#cup-customizer"
                     className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-cream border border-lilaPastel/30 font-bold px-8 py-4 rounded-full transition-colors"
                   >
-                    Diseñar Taza 2D
+                    Personalizar
                   </a>
                 </div>
               </div>

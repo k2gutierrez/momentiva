@@ -3,7 +3,7 @@
 import React, { useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
 import { authModalOpenAtom, userAtom, userProfileAtom } from "@/store/authStore";
-import { XIcon, EnvelopeIcon, LockIcon, UserIcon as UserIcon, CalendarIcon } from "@phosphor-icons/react/dist/ssr";
+import { XIcon, EnvelopeIcon, LockIcon, UserIcon, CalendarIcon, ArrowLeftIcon } from "@phosphor-icons/react/dist/ssr";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 
@@ -13,6 +13,8 @@ export default function AuthModal() {
   const setProfile = useSetAtom(userProfileAtom);
 
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -27,8 +29,18 @@ export default function AuthModal() {
     const supabase = createClient();
 
     try {
-      if (isRegistering) {
-        // --- REGISTER ---
+      if (isForgotPassword) {
+        // --- RECUPERAR CONTRASEÑA ---
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (error) throw error;
+
+        toast.success("Te hemos enviado un correo para restablecer tu contraseña.");
+        setIsForgotPassword(false);
+      } else if (isRegistering) {
+        // --- REGISTRO ---
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
@@ -50,7 +62,7 @@ export default function AuthModal() {
           setIsOpen(false);
         }
       } else {
-        // --- LOGIN ---
+        // --- INICIO DE SESIÓN ---
         const { data: authData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -94,17 +106,25 @@ export default function AuthModal() {
         {/* Modal Header */}
         <div className="p-8 pb-4 text-center">
           <h3 className="text-3xl font-bold text-berenjena">
-            {isRegistering ? "Crear Cuenta" : "¡Hola de nuevo!"}
+            {isForgotPassword 
+              ? "Recuperar Contraseña" 
+              : isRegistering 
+              ? "Crear Cuenta" 
+              : "¡Hola de nuevo!"}
           </h3>
-          <p className="text-sage font-handwriting text-xl mt-1">
-            {isRegistering ? "Empieza a crear momentos inolvidables" : "Ingresa para gestionar tus pedidos"}
+          <p className="text-orange-500 font-handwriting text-xl mt-1">
+            {isForgotPassword
+              ? "Te enviaremos las instrucciones a tu correo"
+              : isRegistering 
+              ? "Empieza a crear momentos inolvidables" 
+              : "Ingresa para gestionar tus pedidos"}
           </p>
         </div>
 
         {/* Form */}
         <form onSubmit={handleAuth} className="p-8 pt-2 space-y-4">
           
-          {isRegistering && (
+          {isRegistering && !isForgotPassword && (
             <>
               <div>
                 <label className="block text-sm font-bold text-berenjena mb-1">Nombre Completo</label>
@@ -152,33 +172,60 @@ export default function AuthModal() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-bold text-berenjena mb-1">Contraseña</label>
-            <div className="relative flex items-center">
-              <LockIcon size={20} className="absolute left-3 text-sage" />
-              <input 
-                type="password" 
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
-              />
+          {!isForgotPassword && (
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <label className="block text-sm font-bold text-berenjena">Contraseña</label>
+                {!isRegistering && (
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-xs text-terracota hover:underline font-bold"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                )}
+              </div>
+              <div className="relative flex items-center">
+                <LockIcon size={20} className="absolute left-3 text-sage" />
+                <input 
+                  type="password" 
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
+                />
+              </div>
             </div>
-          </div>
+          )}
 
           <button 
             type="submit" 
             disabled={isLoading}
             className="w-full bg-terracota hover:bg-opacity-90 disabled:opacity-70 text-white font-bold py-3.5 rounded-xl shadow-md transition-all duration-300 mt-2"
           >
-            {isLoading ? "Cargando..." : isRegistering ? "Registrarme" : "Iniciar Sesión"}
+            {isLoading 
+              ? "Cargando..." 
+              : isForgotPassword 
+              ? "Enviar Enlace" 
+              : isRegistering 
+              ? "Registrarme" 
+              : "Iniciar Sesión"}
           </button>
         </form>
 
         {/* Modal Footer Toggle */}
         <div className="bg-cream/50 p-4 border-t border-lilaPastel text-center text-sm">
-          {isRegistering ? (
+          {isForgotPassword ? (
+            <button 
+              type="button"
+              onClick={() => setIsForgotPassword(false)} 
+              className="font-bold text-terracota hover:underline flex items-center justify-center gap-1 mx-auto"
+            >
+              <ArrowLeftIcon size={16} /> Volver a Iniciar Sesión
+            </button>
+          ) : isRegistering ? (
             <p className="text-gray-600">
               ¿Ya tienes cuenta?{" "}
               <button 
