@@ -64,3 +64,22 @@ export async function deleteDeliveryZone(id: string) {
   revalidatePath("/admin/delivery-zones");
   return { success: true };
 }
+
+export async function bulkUpsertDeliveryZones(zones: any[]) {
+  const supabase = await createClient();
+
+  try {
+    // El upsert insertará los registros nuevos. 
+    // onConflict: "zip_code" indica que si el CP ya existe, lo va a actualizar.
+    const { error } = await supabase
+      .from("delivery_zones")
+      .upsert(zones, { onConflict: "zip_code" });
+
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/admin/delivery-zones");
+    return { success: true, count: zones.length };
+  } catch (error: any) {
+    return { success: false, error: error.message };
+  }
+}

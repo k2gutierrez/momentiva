@@ -1,191 +1,138 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/server";
 import Header from "@/components/Header";
-import CupPreviewer from "@/components/CupPreviewer";
-import { ShoppingCartIcon, CalendarBlankIcon, PackageIcon } from "@phosphor-icons/react/dist/ssr";
-import { toast } from "sonner";
+import Footer from "@/components/Footer";
+import AuthModal from "@/components/AuthModal";
+import CupPreviewer from "@/components/CupPreviewer"; // Asegúrate de que la ruta sea correcta
+import { notFound } from "next/navigation";
+import { ShieldCheckIcon, SparkleIcon } from "@phosphor-icons/react/dist/ssr";
+import AddToCartButton from "@/components/AddToCartButton";
 
-export default function ProductPage() {
-  const params = useParams();
-  const slug = params.slug as string;
-  
-  const [product, setProduct] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  // State to track user selections for dynamic options
-  const [selectedOptions, setSelectedOptions] = useState<Record<string, any>>({});
-  const [calculatedPrice, setCalculatedPrice] = useState(0);
+export const dynamic = 'force-dynamic';
 
-  // Fetch the product data
-  useEffect(() => {
-    const fetchProduct = async () => {
-      const supabase = createClient();
-      const { data, error } = await supabase
-        .from("products")
-        .select("*")
-        .eq("slug", slug)
-        .single();
+export default async function ProductPage({
+  params,
+}: {
+  params: { slug: string };
+}) {
+  const supabase = await createClient();
 
-      if (data) {
-        setProduct(data);
-        setCalculatedPrice(data.price);
-        
-        // Initialize default states for custom options
-        const initialOptions: Record<string, any> = {};
-        if (data.custom_options) {
-          data.custom_options.forEach((opt: any) => {
-            if (opt.type === "checkbox") initialOptions[opt.name] = false;
-            if (opt.type === "select") initialOptions[opt.name] = ""; 
-          });
-        }
-        setSelectedOptions(initialOptions);
-      }
-      setIsLoading(false);
-    };
+  // 1. Obtener el producto basado en el Slug
+  const { data: product, error } = await supabase
+    .from("products")
+    .select("*, category:categories(name, slug)")
+    .eq("slug", params.slug)
+    .eq("is_active", true)
+    .single();
 
-    fetchProduct();
-  }, [slug]);
-
-  // Recalculate price whenever options change
-  useEffect(() => {
-    if (!product) return;
-    let newTotal = product.price;
-
-    product.custom_options?.forEach((opt: any) => {
-      if (opt.type === "checkbox" && selectedOptions[opt.name]) {
-        newTotal += opt.priceImpact;
-      }
-    });
-
-    setCalculatedPrice(newTotal);
-  }, [selectedOptions, product]);
-
-  const handleAddToCart = () => {
-    // We will connect this to Jotai global cart state later
-    console.log("Adding to cart:", { product, selectedOptions, calculatedPrice });
-    toast.success(`${product.name} agregado al carrito`);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-cream flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center text-berenjena">Cargando producto...</div>
-      </div>
-    );
+  // Si no existe o hay error, mandamos a página 404
+  if (error || !product) {
+    notFound();
   }
 
-  if (!product) {
-    return (
-      <div className="min-h-screen bg-cream flex flex-col">
-        <Header />
-        <div className="flex-1 flex items-center justify-center text-berenjena">Producto no encontrado.</div>
-      </div>
-    );
-  }
+  // Usar la primera imagen como principal
+  const mainImage = product.images && product.images.length > 0 ? product.images[0] : null;
 
   return (
-    <div className="min-h-screen bg-cream font-sans pb-20">
+    <main className="bg-white min-h-screen flex flex-col">
+      <AuthModal />
       <Header />
 
-      <main className="max-w-7xl mx-auto px-8 py-12 animate-fade-in-up">
-        <div className="bg-white rounded-3xl shadow-lg border border-lilaPastel overflow-hidden flex flex-col md:flex-row">
-          
-          {/* Left Column: Image or Cup Previewer */}
-          <div className="md:w-1/2 bg-cream/30 border-r border-lilaPastel p-8 flex items-center justify-center">
-            {product.is_custom_cup ? (
-              <CupPreviewer /> // Render the interactive 2D canvas for cups[cite: 1]
-            ) : (
-              <img 
-                src={product.images?.[0] || "/placeholder.jpg"} 
-                alt={product.name}
-                className="w-full max-w-md h-auto object-cover rounded-xl shadow-sm"
-              />
-            )}
-          </div>
+      {/* Sección del Producto Principal */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-8 py-12 md:py-20 w-full flex-grow">
+        <div className="flex flex-col lg:flex-row gap-10 lg:gap-16">
 
-          {/* Right Column: Product Details & Options */}
-          <div className="md:w-1/2 p-10 flex flex-col">
-            
-            {/* Badges */}
-            <div className="flex gap-3 mb-4">
-              {product.is_in_stock_item ? (
-                <span className="flex items-center gap-1 bg-sage/20 text-sage px-3 py-1 rounded-full text-sm font-bold">
-                  <PackageIcon size={16} /> Envío Mismo Día
-                </span>
+          {/* Columna Izquierda: Galería de Imágenes */}
+          <div className="w-full lg:w-1/2">
+            <div className="relative aspect-[4/5] bg-[#F5EFF6] rounded-3xl overflow-hidden border border-lilaPastel shadow-sm">
+              {mainImage ? (
+                <img
+                  src={mainImage}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
               ) : (
-                <span className="flex items-center gap-1 bg-gray-100 text-gray-600 px-3 py-1 rounded-full text-sm font-bold">
-                  <CalendarBlankIcon size={16} /> Pedir con {product.anticipation_days} días de anticipación
-                </span>
+                <div className="w-full h-full flex items-center justify-center text-sage font-bold">
+                  Sin imagen
+                </div>
+              )}
+              {product.is_in_stock_item && (
+                <div className="absolute top-4 right-4 bg-sage text-white text-xs uppercase font-bold px-4 py-2 rounded-full shadow-md">
+                  Envío Hoy
+                </div>
               )}
             </div>
+            {/* Si tienes más imágenes, podrías iterarlas aquí abajo como miniaturas */}
+          </div>
 
-            <h1 className="text-4xl font-bold text-berenjena mb-2">{product.name}</h1>
-            <p className="text-terracota text-3xl font-bold mb-6">${calculatedPrice.toFixed(2)} MXN</p>
-            
-            <p className="text-gray-600 mb-8 leading-relaxed">
-              {product.description}
-            </p>
+          {/* Columna Derecha: Información y Compra */}
+          <div className="w-full lg:w-1/2 flex flex-col justify-center">
 
-            {/* Dynamic Custom Options Renderer[cite: 1] */}
-            {product.custom_options && product.custom_options.length > 0 && (
-              <div className="mb-8 space-y-4 bg-cream/30 p-6 rounded-xl border border-lilaPastel">
-                <h3 className="font-bold text-berenjena mb-4">Personaliza tu pedido:</h3>
-                
-                {product.custom_options.map((opt: any, index: number) => (
-                  <div key={index} className="flex flex-col">
-                    
-                    {opt.type === "checkbox" && (
-                      <label className="flex items-center gap-3 cursor-pointer group">
-                        <input 
-                          type="checkbox" 
-                          className="w-5 h-5 accent-terracota cursor-pointer"
-                          checked={selectedOptions[opt.name] || false}
-                          onChange={(e) => setSelectedOptions({...selectedOptions, [opt.name]: e.target.checked})}
-                        />
-                        <span className="text-berenjena font-semibold group-hover:text-terracota transition-colors">
-                          {opt.name} <span className="text-sage text-sm">(+${opt.priceImpact.toFixed(2)})</span>
-                        </span>
-                      </label>
-                    )}
-
-                    {opt.type === "select" && (
-                      <div className="flex flex-col">
-                        <label className="text-sm font-bold text-berenjena mb-1">{opt.name}</label>
-                        <select 
-                          className="px-4 py-2 border border-lilaPastel rounded-lg bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
-                          value={selectedOptions[opt.name] || ""}
-                          onChange={(e) => setSelectedOptions({...selectedOptions, [opt.name]: e.target.value})}
-                        >
-                          <option value="">Selecciona una opción...</option>
-                          <option value="opcion1">Opción Estándar</option>
-                          {/* Note: A fully robust select would need the admin to define the sub-options inside the JSON too! */}
-                        </select>
-                      </div>
-                    )}
-
-                  </div>
-                ))}
-              </div>
+            {/* Breadcrumbs / Categoría */}
+            {product.category && (
+              <span className="text-sage font-bold uppercase tracking-widest text-xs mb-3 block">
+                {product.category.name}
+              </span>
             )}
 
-            {/* Add to Cart Area */}
-            <div className="mt-auto pt-8 border-t border-lilaPastel flex gap-4">
-              <button 
-                onClick={handleAddToCart}
-                className="flex-1 flex items-center justify-center gap-2 bg-terracota hover:bg-opacity-90 text-white px-8 py-4 rounded-xl shadow-md transition-all duration-300 font-bold text-lg hover:-translate-y-1"
-              >
-                <ShoppingCartIcon size={24} weight="bold" />
-                Agregar al Carrito
-              </button>
+            <h1 className="text-3xl md:text-5xl font-bold text-[#3A243F] mb-4 leading-tight">
+              {product.name}
+            </h1>
+
+            <div className="text-3xl md:text-4xl font-bold text-terracota mb-6">
+              ${product.price.toFixed(2)} <span className="text-base text-gray-500 font-normal">MXN</span>
             </div>
 
+            <p className="text-gray-600 text-base md:text-lg leading-relaxed mb-8">
+              {product.description || "Un detalle inolvidable preparado a mano en Guadalajara."}
+            </p>
+
+            {/* Garantías o Trust Badges */}
+            <div className="flex flex-col gap-3 mb-10 bg-[#F5EFF6] p-5 rounded-2xl border border-lilaPastel">
+              <div className="flex items-center gap-3 text-sm text-[#3A243F] font-bold">
+                <SparkleIcon size={20} className="text-terracota" weight="fill" />
+                Globos burbuja con aire (duran semanas, no días).
+              </div>
+              <div className="flex items-center gap-3 text-sm text-[#3A243F] font-bold">
+                <ShieldCheckIcon size={20} className="text-sage" weight="fill" />
+                Pago seguro y envío local en ZMG.
+              </div>
+            </div>
+
+            {/* BOTÓN INTELIGENTE DE CARRITO */}
+            <AddToCartButton
+              product={{
+                id: product.id,
+                name: product.name,
+                price: product.price,
+                slug: product.slug,
+                image: mainImage || "/placeholder.jpg"
+              }}
+            />
+            <p className="text-center text-xs text-gray-400">
+              Personalizaciones de texto y color se confirman en el carrito.
+            </p>
           </div>
         </div>
-      </main>
-    </div>
+      </section>
+
+      {/* Sección: Complementa tu Regalo (Taza 2D) */}
+      <section className="bg-cream border-t border-lilaPastel py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="text-center mb-12">
+            <span className="text-2xl font-handwriting text-terracota block mb-2">
+              Hazlo aún más especial...
+            </span>
+            <h3 className="text-3xl md:text-4xl font-bold text-[#3A243F]">
+              Complementa tu regalo
+            </h3>
+          </div>
+
+          {/* Insertamos nuestro componente responsivo */}
+          <CupPreviewer />
+        </div>
+      </section>
+
+      <Footer />
+    </main>
   );
 }

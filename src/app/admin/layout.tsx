@@ -13,7 +13,8 @@ import {
   MapPinIcon,
   ArrowLeftIcon, 
   TicketIcon, 
-  SlideshowIcon
+  SlideshowIcon, 
+  InstagramLogoIcon
 } from "@phosphor-icons/react/dist/ssr";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { name: "Clientes", href: "/admin/clients", icon: UsersIcon },
     { name: "Cupones", href: "/admin/coupons", icon: TicketIcon },
     { name: "Carrusel Banner", href: "/admin/carousels", icon: SlideshowIcon },
+    { name: "Feed Instagram", href: "/admin/instagram", icon: InstagramLogoIcon },
   ];
 
   return (
