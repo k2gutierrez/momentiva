@@ -42,7 +42,7 @@ export default function RootLayout({
 
             {/* Botón Flotante de WhatsApp */}
             <a
-              href="https://wa.me/523312345678" // Sustituye con tu número real
+              href="https://wa.me/523349427375" // Sustituye con tu número real
               target="_blank"
               rel="noopener noreferrer"
               className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white p-3 md:p-4 rounded-full shadow-2xl transition-transform hover:scale-110 flex items-center justify-center animate-fade-in-up"
