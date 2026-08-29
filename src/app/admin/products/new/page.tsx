@@ -52,24 +52,31 @@ export default function NewProductPage() {
       formData.append("isStockItem", isStockItem.toString());
       formData.append("isCustomCup", isCustomCup.toString());
 
-      // Transformamos el string de choices "Rojo, Azul" a un arreglo ["Rojo", "Azul"] antes de guardar
+      // Formateamos las opciones de forma súper segura
       const formattedOptions = customOptions.map(opt => ({
         ...opt,
-        choices: opt.type === "select" ? opt.choices.split(",").map(c => c.trim()).filter(c => c !== "") : []
+        choices: (opt.type === "select" && typeof opt.choices === "string")
+          ? opt.choices.split(",").map(c => c.trim()).filter(c => c !== "")
+          : []
       }));
 
       formData.append("customOptions", JSON.stringify(formattedOptions));
 
+      // Llamamos a la función del servidor
       const result = await createProduct(formData);
 
       if (result.success) {
         toast.success("Producto creado exitosamente");
         router.push("/admin/products");
       } else {
-        toast.error(result.error || "Error al crear el producto");
+        // Si Supabase falla, mostramos su error real
+        console.error("Error desde Supabase:", result.error);
+        toast.error("Error de Base de Datos: " + result.error);
       }
-    } catch (error) {
-      toast.error("Ocurrió un error inesperado");
+    } catch (error: any) {
+      // Si Next.js o el navegador fallan, mostramos el error técnico
+      console.error("ERROR CATASTRÓFICO:", error);
+      toast.error("Falla técnica: " + (error.message || "Revisa la consola"));
     } finally {
       setIsLoading(false);
     }
@@ -86,7 +93,7 @@ export default function NewProductPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        
+
         {/* Image Upload Section */}
         <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
           <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Imagen Principal</h3>
@@ -191,7 +198,7 @@ export default function NewProductPage() {
             <div className="space-y-4">
               {customOptions.map((opt, index) => (
                 <div key={index} className="flex flex-wrap items-start gap-3 bg-cream/50 p-4 rounded-lg border border-lilaPastel">
-                  
+
                   <div className="flex-1 min-w-[200px] space-y-3">
                     <div className="flex gap-3">
                       <div className="flex-1">
@@ -217,7 +224,7 @@ export default function NewProductPage() {
                         <input type="text" value={opt.choices} onChange={(e) => handleOptionChange(index, "choices", e.target.value)} className="w-full px-2 py-1 border border-lilaPastel rounded bg-white text-sm" placeholder="Rosa, Azul, Dorado" required={opt.type === "select"} />
                       </div>
                     )}
-                    
+
                     <div className="flex items-center gap-2 mt-2">
                       <input type="checkbox" id={`req-${index}`} checked={opt.required} onChange={(e) => handleOptionChange(index, "required", e.target.checked)} className="accent-terracota" />
                       <label htmlFor={`req-${index}`} className="text-xs text-berenjena">Es obligatorio que el cliente lo llene</label>
@@ -228,7 +235,7 @@ export default function NewProductPage() {
                     <label className="block text-xs font-bold text-berenjena mb-1">Costo Extra ($)</label>
                     <input type="number" step="0.01" value={opt.priceImpact} onChange={(e) => handleOptionChange(index, "priceImpact", parseFloat(e.target.value) || 0)} className="w-24 px-2 py-1 border border-lilaPastel rounded bg-white text-sm" placeholder="0.00" />
                   </div>
-                  
+
                   <button type="button" onClick={() => handleRemoveOption(index)} className="p-2 mt-4 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                     <TrashIcon size={20} />
                   </button>
