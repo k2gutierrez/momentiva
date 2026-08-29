@@ -46,26 +46,31 @@ export default function AdminDeliveryZonesPage() {
     if (!file) return;
 
     setIsUploading(true);
-    toast.info("Procesando archivo...");
+    toast.info("Procesando y limpiando archivo...");
 
     const reader = new FileReader();
     reader.onload = async (event) => {
       try {
         const text = event.target?.result as string;
         const lines = text.split("\n");
-        
-        const parsedZones = [];
-        
+
+        // Usamos un Map en lugar de un Array para evitar duplicados.
+        // La llave será el código postal.
+        const zonesMap = new Map();
+
         // Saltamos la línea 0 que son los encabezados (Codigo Postal,Municipio,Costo)
         for (let i = 1; i < lines.length; i++) {
           const line = lines[i].trim();
           if (!line) continue;
-          
+
           const [zip_code, municipality, cost] = line.split(",");
-          
+
           if (zip_code && municipality && cost) {
-            parsedZones.push({
-              zip_code: zip_code.trim(),
+            const cleanZip = zip_code.trim();
+            // Al usar .set() con el código postal, si ya existía antes en el Excel, 
+            // simplemente lo sobrescribe con el más nuevo, evitando el error de base de datos.
+            zonesMap.set(cleanZip, {
+              zip_code: cleanZip,
               municipality: municipality.trim(),
               delivery_cost: parseFloat(cost.trim()),
               is_available: true
@@ -73,11 +78,14 @@ export default function AdminDeliveryZonesPage() {
           }
         }
 
+        // Convertimos el Map de vuelta a un arreglo limpio
+        const parsedZones = Array.from(zonesMap.values());
+
         if (parsedZones.length === 0) {
           throw new Error("El archivo está vacío o no tiene el formato correcto.");
         }
 
-        // Mandamos el arreglo a Supabase
+        // Mandamos el arreglo sin duplicados a Supabase
         const result = await bulkUpsertDeliveryZones(parsedZones);
 
         if (result.success) {
@@ -91,10 +99,10 @@ export default function AdminDeliveryZonesPage() {
       } finally {
         setIsUploading(false);
         // Reseteamos el input para que puedan subir el mismo archivo si lo corrigen
-        e.target.value = ""; 
+        e.target.value = "";
       }
     };
-    
+
     reader.readAsText(file);
   };
 
@@ -110,17 +118,17 @@ export default function AdminDeliveryZonesPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
+
         {/* Columna Izquierda: Carga Masiva */}
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-xl shadow-sm border border-lilaPastel sticky top-6">
             <h3 className="text-xl font-bold text-berenjena mb-4">Carga Masiva (CSV)</h3>
-            
+
             <p className="text-sm text-gray-500 mb-6">
               Sube un archivo de Excel guardado como <strong>.csv (Valores separados por comas)</strong> para registrar cientos de códigos postales en un segundo.
             </p>
 
-            <button 
+            <button
               onClick={downloadTemplate}
               className="w-full flex items-center justify-center gap-2 bg-cream text-[#3A243F] border border-lilaPastel hover:border-terracota font-bold py-3 rounded-lg transition-colors mb-4"
             >
@@ -130,10 +138,10 @@ export default function AdminDeliveryZonesPage() {
             <label className={`w-full flex items-center justify-center gap-2 font-bold py-3 rounded-lg shadow-md transition-colors cursor-pointer ${isUploading ? 'bg-gray-400 cursor-not-allowed' : 'bg-terracota hover:bg-opacity-90 text-white'}`}>
               <UploadSimpleIcon size={20} />
               {isUploading ? "Procesando..." : "Subir Archivo CSV"}
-              <input 
-                type="file" 
-                accept=".csv" 
-                className="hidden" 
+              <input
+                type="file"
+                accept=".csv"
+                className="hidden"
                 onChange={handleFileUpload}
                 disabled={isUploading}
               />
