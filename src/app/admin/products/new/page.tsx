@@ -77,6 +77,7 @@ export default function NewProductPage() {
 
   return (
     <div className="max-w-4xl mx-auto animate-fade-in-up">
+      {/* Header */}
       <div className="flex items-center gap-4 mb-8">
         <Link href="/admin/products" className="p-2 bg-white rounded-full text-sage hover:bg-lilaPastel transition-colors shadow-sm">
           <ArrowLeftIcon size={24} />
@@ -85,8 +86,95 @@ export default function NewProductPage() {
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* ... (Las secciones de Imagen, Info General, Precios y Reglas se mantienen exactamente igual que tu código original) ... */}
-        {/* Basic Information, Pricing & Margins, Inventory & Special Rules -> Pégalos aquí de tu código anterior */}
+        
+        {/* Image Upload Section */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
+          <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Imagen Principal</h3>
+          <div className="flex items-center gap-4">
+            <div className="w-24 h-24 bg-cream rounded-lg flex items-center justify-center border-2 border-dashed border-lilaPastel text-sage">
+              <ImageIcon size={32} />
+            </div>
+            <div className="flex-1">
+              <label className="block text-sm font-bold text-berenjena mb-1">Subir Fotografía</label>
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sage/20 file:text-sage hover:file:bg-sage/30 cursor-pointer"
+              />
+              <p className="text-xs text-gray-400 mt-1">Recomendado: PNG o JPG cuadrado (800x800px).</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Basic Information */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
+          <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Información General</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-berenjena mb-1">Nombre del Producto</label>
+              <input type="text" name="name" required className="w-full px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="Ej. Taza de Cerámica" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-berenjena mb-1">Categoría</label>
+              <select
+                name="categoryId"
+                required
+                className="w-full px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
+              >
+                <option value="">Selecciona una categoría...</option>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-bold text-berenjena mb-1">Descripción</label>
+            <textarea name="description" rows={3} required className="w-full px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="Detalles del producto..."></textarea>
+          </div>
+        </div>
+
+        {/* Pricing & Margins */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
+          <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Precios y Márgenes</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-bold text-berenjena mb-1">Precio de Venta ($)</label>
+              <input type="number" step="0.01" name="price" required className="w-full px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="0.00" />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-berenjena mb-1 text-sage">Costo Bruto ($) - Privado</label>
+              <input type="number" step="0.01" name="rawCost" required className="w-full px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="Para cálculo de margen" />
+            </div>
+          </div>
+        </div>
+
+        {/* Inventory & Special Rules */}
+        <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
+          <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Reglas y Logística</h3>
+          <div className="flex items-center gap-4 mb-4">
+            <input type="checkbox" id="stockToggle" className="w-5 h-5 accent-terracota cursor-pointer" checked={isStockItem} onChange={() => setIsStockItem(!isStockItem)} />
+            <label htmlFor="stockToggle" className="font-bold text-berenjena cursor-pointer">Es artículo en Stock (Envío mismo día)</label>
+          </div>
+          {isStockItem ? (
+            <div>
+              <label className="block text-sm font-bold text-berenjena mb-1">Cantidad en Inventario</label>
+              <input type="number" name="stockQuantity" className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="0" />
+            </div>
+          ) : (
+            <div>
+              <label className="block text-sm font-bold text-berenjena mb-1">Días de Anticipación Requeridos</label>
+              <input type="number" name="anticipationDays" className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="Ej. 2" />
+            </div>
+          )}
+          <div className="flex items-center gap-4 mt-6">
+            <input type="checkbox" id="cupToggle" className="w-5 h-5 accent-terracota cursor-pointer" checked={isCustomCup} onChange={() => setIsCustomCup(!isCustomCup)} />
+            <label htmlFor="cupToggle" className="font-bold text-berenjena cursor-pointer">Habilitar Previsualizador 2D de Taza para este producto</label>
+          </div>
+        </div>
 
         {/* Opciones Dinámicas Actualizadas */}
         <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
@@ -150,6 +238,7 @@ export default function NewProductPage() {
           )}
         </div>
 
+        {/* Submit Actions */}
         <div className="flex justify-end gap-4 pb-12">
           <Link href="/admin/products" className="px-6 py-3 font-bold text-sage hover:text-berenjena transition-colors">Cancelar</Link>
           <button type="submit" disabled={isLoading} className="flex items-center gap-2 bg-terracota hover:bg-opacity-90 disabled:opacity-70 text-white px-8 py-3 rounded-lg shadow-md transition-colors font-bold">
