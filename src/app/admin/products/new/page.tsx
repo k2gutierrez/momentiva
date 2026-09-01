@@ -49,34 +49,40 @@ export default function NewProductPage() {
 
     try {
       const formData = new FormData(e.currentTarget);
+      
+      // 🛡️ BLINDAJE 1: Validar el peso de la imagen ANTES de enviarla al servidor
+      const imageFile = formData.get("image") as File;
+      if (imageFile && imageFile.size > 0) {
+        const fileSizeInMB = imageFile.size / (1024 * 1024);
+        if (fileSizeInMB > 5) {
+          toast.error("La imagen es muy pesada (máximo 5MB). Por favor, comprímela.");
+          setIsLoading(false);
+          return; // Detenemos la ejecución aquí, el servidor ni se entera
+        }
+      }
+
       formData.append("isStockItem", isStockItem.toString());
       formData.append("isCustomCup", isCustomCup.toString());
 
-      // Formateamos las opciones de forma súper segura
       const formattedOptions = customOptions.map(opt => ({
         ...opt,
         choices: (opt.type === "select" && typeof opt.choices === "string")
-          ? opt.choices.split(",").map(c => c.trim()).filter(c => c !== "")
+          ? opt.choices.split(",").map(c => c.trim()).filter(c => c !== "") 
           : []
       }));
 
       formData.append("customOptions", JSON.stringify(formattedOptions));
 
-      // Llamamos a la función del servidor
       const result = await createProduct(formData);
 
       if (result.success) {
         toast.success("Producto creado exitosamente");
         router.push("/admin/products");
       } else {
-        // Si Supabase falla, mostramos su error real
-        console.error("Error desde Supabase:", result.error);
-        toast.error("Error de Base de Datos: " + result.error);
+        toast.error("Error al guardar: " + result.error);
       }
     } catch (error: any) {
-      // Si Next.js o el navegador fallan, mostramos el error técnico
-      console.error("ERROR CATASTRÓFICO:", error);
-      toast.error("Falla técnica: " + (error.message || "Revisa la consola"));
+      toast.error("Error en el formulario: " + (error.message || "Revisa los campos"));
     } finally {
       setIsLoading(false);
     }

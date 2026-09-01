@@ -94,12 +94,27 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
     try {
       const formData = new FormData(e.currentTarget);
+      
+      // 🛡️ BLINDAJE 1: Validar el peso de la imagen ANTES de enviarla
+      const imageFile = formData.get("image") as File;
+      if (imageFile && imageFile.size > 0) {
+        const fileSizeInMB = imageFile.size / (1024 * 1024);
+        if (fileSizeInMB > 5) {
+          toast.error("La imagen es muy pesada (máximo 5MB). Por favor, comprímela.");
+          setIsLoading(false);
+          return; // Detiene todo, el servidor se salva
+        }
+      }
+
       formData.append("isStockItem", isStockItem.toString());
       formData.append("isCustomCup", isCustomCup.toString());
 
+      // 🛡️ BLINDAJE 2: Formateo ultra seguro de opciones dinámicas
       const formattedOptions = customOptions.map(opt => ({
         ...opt,
-        choices: opt.type === "select" ? opt.choices.split(",").map((c: string) => c.trim()).filter((c: string) => c !== "") : []
+        choices: (opt.type === "select" && typeof opt.choices === "string") 
+          ? opt.choices.split(",").map((c: string) => c.trim()).filter((c: string) => c !== "") 
+          : []
       }));
 
       formData.append("customOptions", JSON.stringify(formattedOptions));
@@ -107,13 +122,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const result = await updateProduct(productId, formData);
 
       if (result.success) {
-        toast.success("Producto actualizado");
+        toast.success("Producto actualizado exitosamente");
         router.push("/admin/products");
       } else {
-        toast.error(result.error || "Error al actualizar");
+        toast.error("Error al actualizar: " + result.error);
       }
-    } catch (error) {
-      toast.error("Ocurrió un error inesperado");
+    } catch (error: any) {
+      toast.error("Falla en el formulario: " + (error.message || "Revisa los datos ingresados"));
     } finally {
       setIsLoading(false);
     }

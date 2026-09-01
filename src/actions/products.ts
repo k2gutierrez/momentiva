@@ -4,9 +4,10 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 
 export async function createProduct(formData: FormData) {
-  const supabase = await createClient();
-
   try {
+    // 1. MOVIMOS LA CONEXIÓN ADENTRO DEL TRY POR SEGURIDAD
+    const supabase = await createClient();
+
     const name = formData.get("name") as string;
     const categoryId = formData.get("categoryId") as string;
     const description = formData.get("description") as string;
@@ -21,7 +22,8 @@ export async function createProduct(formData: FormData) {
     const imageFile = formData.get("image") as File;
     let imageUrl = "";
 
-    if (imageFile && imageFile.size > 0) {
+    // VALIDACIÓN ULTRA-SEGURA PARA LA IMAGEN
+    if (imageFile && typeof imageFile === 'object' && imageFile.size > 0 && imageFile.name) {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `public/${fileName}`;
@@ -64,15 +66,18 @@ export async function createProduct(formData: FormData) {
     return { success: true };
     
   } catch (error: any) {
-    return { success: false, error: error.message };
+    // AHORA SÍ ATRAPARÁ CUALQUIER FALLA
+    console.error("Error real capturado:", error);
+    return { success: false, error: error.message || "Error desconocido en el servidor" };
   }
 }
 
 // NUEVA FUNCIÓN: Actualizar producto existente
 export async function updateProduct(id: string, formData: FormData) {
-  const supabase = await createClient();
-
   try {
+    // 🛡️ BLINDAJE 1: Conexión dentro de la caja de seguridad (try)
+    const supabase = await createClient();
+
     const name = formData.get("name") as string;
     const categoryId = formData.get("categoryId") as string;
     const description = formData.get("description") as string;
@@ -87,8 +92,8 @@ export async function updateProduct(id: string, formData: FormData) {
     const imageFile = formData.get("image") as File;
     let imageUrl = null;
 
-    // Solo subimos imagen si el admin seleccionó un archivo nuevo
-    if (imageFile && imageFile.size > 0) {
+    // 🛡️ BLINDAJE 2: Validación súper estricta de que sí es un archivo real
+    if (imageFile && typeof imageFile === 'object' && imageFile.size > 0 && imageFile.name) {
       const fileExt = imageFile.name.split('.').pop();
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `public/${fileName}`;
@@ -97,7 +102,7 @@ export async function updateProduct(id: string, formData: FormData) {
         .from('product-images')
         .upload(filePath, imageFile);
 
-      if (uploadError) throw new Error(`Error uploading image: ${uploadError.message}`);
+      if (uploadError) throw new Error(`Error subiendo imagen: ${uploadError.message}`);
 
       const { data: publicUrlData } = supabase.storage
         .from('product-images')
@@ -120,7 +125,7 @@ export async function updateProduct(id: string, formData: FormData) {
       custom_options: customOptions,
     };
 
-    // Si se subió imagen nueva, actualizamos el arreglo, si no, se queda la que tenía
+    // Si se subió imagen nueva con éxito, actualizamos el arreglo
     if (imageUrl) {
       payload.images = [imageUrl];
     }
@@ -130,16 +135,18 @@ export async function updateProduct(id: string, formData: FormData) {
       .update(payload)
       .eq("id", id);
 
-    if (updateError) throw new Error(`Error updating product: ${updateError.message}`);
+    if (updateError) throw new Error(`Error actualizando base de datos: ${updateError.message}`);
 
     revalidatePath("/admin/products");
     revalidatePath("/tienda");
-    revalidatePath(`/product/${id}`); // Para limpiar el caché de esa página específica
+    revalidatePath(`/product/${id}`); 
     
     return { success: true };
     
   } catch (error: any) {
-    return { success: false, error: error.message };
+    // 🛡️ BLINDAJE 3: Ahora sí atraparemos y mostraremos cualquier error de Servidor
+    console.error("Error real capturado en updateProduct:", error);
+    return { success: false, error: error.message || "Falla técnica en el servidor al actualizar" };
   }
 }
 
