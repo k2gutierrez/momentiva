@@ -6,6 +6,7 @@ import { CaretLeftIcon, CaretRightIcon } from "@phosphor-icons/react/dist/ssr";
 interface CarouselSlide {
   id: string;
   image_url: string;
+  mobile_image_url: string | null;
   title: string | null;
   order_index: number;
 }
@@ -37,33 +38,30 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
   // Fallback hero if no active slides are uploaded yet
   if (!slides || slides.length === 0) {
     return (
-      <section className="relative w-full bg-berenjena text-cream overflow-hidden">
-        <div className="max-w-7xl mx-auto px-8 py-20 md:py-28 flex flex-col md:flex-row items-center justify-between gap-12">
-          <div className="max-w-xl space-y-6 text-center md:text-left z-10">
-            <span className="inline-block bg-terracota/20 text-terracota border border-terracota/30 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
-              Regalos con Alma
-            </span>
-            <h2 className="text-4xl md:text-6xl font-bold tracking-tight text-cream leading-tight">
-              Cada regalo, un{" "}
-              <span className="text-lilaPastel font-handwriting text-5xl md:text-7xl block mt-1">
-                momento inolvidable
-              </span>
-            </h2>
-            <p className="text-lg text-lilaPastel/90 leading-relaxed">
-              Descubre detalles únicos creados a mano, tazas personalizadas con vista previa 2D y postres deliciosos para sorprender.
+      <section className="relative w-full overflow-hidden bg-berenjena">
+        {/* Banner de marca local como fondo */}
+        <img
+          src="/assets/Banner1.svg"
+          alt="Banner Momentiva"
+          className="absolute inset-0 w-full h-full object-cover"
+        />
+        <div className="relative max-w-7xl mx-auto px-8 py-8 md:py-10 flex flex-col items-center justify-end h-[260px] md:h-[340px]">
+          <div className="max-w-xl w-full space-y-5 text-center pb-6 md:pb-10 z-10">
+            <p className="hidden sm:block text-lg md:text-xl text-white font-bold drop-shadow-md leading-relaxed">
+              Momentos que se quedan por más tiempo. Regalos personalizados y globos burbuja con aire —no helio— que acompañan tus celebraciones por semanas. Entregamos en Guadalajara, Zapopan y Tlajomulco de Zúñiga.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 pt-4 justify-center md:justify-start">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2 sm:pt-4 justify-center">
               <a
                 href="#catalog"
-                className="bg-terracota hover:bg-opacity-90 text-white font-bold px-8 py-4 rounded-full shadow-lg transition-transform hover:scale-105 text-center"
+                className="bg-terracota hover:bg-opacity-90 text-white font-bold px-6 sm:px-8 py-3 sm:py-4 rounded-full shadow-lg transition-transform hover:scale-105 text-center text-sm sm:text-base"
               >
-                Explorar Catálogo
+                Explorar catálogo
               </a>
               <a
-                href="#cup-customizer"
-                className="bg-white/10 hover:bg-white/20 text-cream border border-lilaPastel/30 font-bold px-8 py-4 rounded-full transition-colors text-center"
+                href="/tienda?categoria=personalizados"
+                className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/30 font-bold px-6 sm:px-8 py-3 sm:py-4 rounded-full transition-colors text-center text-sm sm:text-base"
               >
-                Diseñar Taza 2D
+                Personalizar
               </a>
             </div>
           </div>
@@ -75,7 +73,7 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
   return (
     <section className="relative w-full bg-berenjena overflow-hidden text-cream">
       {/* Banner Slide Container */}
-      <div className="relative h-[480px] md:h-[550px] w-full">
+      <div className="relative h-[260px] md:h-[340px] w-full">
         {slides.map((slide, index) => (
           <div
             key={slide.id}
@@ -83,12 +81,29 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
               index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
             }`}
           >
-            {/* Background Image with Dark Vignette Overlay */}
-            <img
-              src={slide.image_url}
-              alt={slide.title || "Banner Momentiva"}
-              className="w-full h-full object-cover"
-            />
+            {/* Background Image (móvil y escritorio) */}
+            {slide.mobile_image_url ? (
+              <>
+                {/* Imagen para celular */}
+                <img
+                  src={slide.mobile_image_url}
+                  alt={slide.title || "Banner Momentiva"}
+                  className="w-full h-full object-cover md:hidden"
+                />
+                {/* Imagen para escritorio */}
+                <img
+                  src={slide.image_url}
+                  alt={slide.title || "Banner Momentiva"}
+                  className="hidden md:block w-full h-full object-cover"
+                />
+              </>
+            ) : (
+              <img
+                src={slide.image_url}
+                alt={slide.title || "Banner Momentiva"}
+                className="w-full h-full object-cover"
+              />
+            )}
             <div className="absolute inset-0"></div>
 
             {/* Slide Content Overlay */}
@@ -113,10 +128,10 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
                     href="#catalog"
                     className="bg-terracota hover:bg-opacity-90 text-white font-bold px-8 py-4 rounded-full shadow-xl transition-transform hover:scale-105"
                   >
-                    Explorar Catálogo
+                    Explorar catálogo
                   </a>
                   <a
-                    href="#cup-customizer"
+                    href="/tienda?categoria=personalizados"
                     className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-cream border border-lilaPastel/30 font-bold px-8 py-4 rounded-full transition-colors"
                   >
                     Personalizar

@@ -9,7 +9,6 @@ export async function createDeliveryZone(formData: FormData) {
   try {
     const zipCode = formData.get("zipCode") as string;
     const municipality = formData.get("municipality") as string;
-    const zoneName = formData.get("zoneName") as string;
     const price = parseFloat(formData.get("price") as string);
 
     if (!zipCode || zipCode.length !== 5) {
@@ -19,9 +18,8 @@ export async function createDeliveryZone(formData: FormData) {
     const { error } = await supabase.from("delivery_zones").insert({
       zip_code: zipCode,
       municipality,
-      zone_name: zoneName,
-      price,
-      is_active: true,
+      delivery_cost: price,
+      is_available: true,
     });
 
     if (error) {
@@ -31,8 +29,8 @@ export async function createDeliveryZone(formData: FormData) {
 
     revalidatePath("/admin/delivery-zones");
     return { success: true };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }
 
@@ -41,7 +39,7 @@ export async function toggleDeliveryZoneStatus(id: string, currentStatus: boolea
 
   const { error } = await supabase
     .from("delivery_zones")
-    .update({ is_active: !currentStatus })
+    .update({ is_available: !currentStatus })
     .eq("id", id);
 
   if (error) {
@@ -65,7 +63,14 @@ export async function deleteDeliveryZone(id: string) {
   return { success: true };
 }
 
-export async function bulkUpsertDeliveryZones(zones: any[]) {
+export interface DeliveryZoneUpsertRow {
+  zip_code: string;
+  municipality: string;
+  delivery_cost: number;
+  is_available: boolean;
+}
+
+export async function bulkUpsertDeliveryZones(zones: DeliveryZoneUpsertRow[]) {
   const supabase = await createClient();
 
   try {
@@ -79,7 +84,7 @@ export async function bulkUpsertDeliveryZones(zones: any[]) {
 
     revalidatePath("/admin/delivery-zones");
     return { success: true, count: zones.length };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }

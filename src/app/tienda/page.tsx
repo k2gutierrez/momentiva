@@ -10,10 +10,12 @@ export const dynamic = 'force-dynamic';
 export default async function TiendaPage({
   searchParams,
 }: {
-  searchParams: { categoria?: string };
+  searchParams: Promise<{ categoria?: string }>;
 }) {
   const supabase = await createClient();
-  const categoriaSlug = searchParams?.categoria;
+  // Next.js 16: searchParams es una Promesa (Async Request APIs)
+  const params = await searchParams;
+  const categoriaSlug = params?.categoria;
 
   // 1. Obtener todas las categorías para pintar los botones de filtro
   const { data: categories } = await supabase
@@ -65,7 +67,7 @@ export default async function TiendaPage({
               className={`whitespace-nowrap snap-center px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm ${
                 !categoriaSlug
                   ? "bg-[#3A243F] text-white"
-                  : "bg-white text-[#3A243F] border border-lilaPastel hover:border-terracota"
+                  : "bg-white text-[#3A243F] hover:text-terracota"
               }`}
             >
               Todos
@@ -78,7 +80,7 @@ export default async function TiendaPage({
                 className={`whitespace-nowrap snap-center px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm ${
                   categoriaSlug === cat.slug
                     ? "bg-[#3A243F] text-white"
-                    : "bg-white text-[#3A243F] border border-lilaPastel hover:border-terracota"
+                    : "bg-white text-[#3A243F] hover:text-terracota"
                 }`}
               >
                 {cat.name}
@@ -100,7 +102,7 @@ export default async function TiendaPage({
                 <Link
                   href={`/product/${product.slug}`}
                   key={product.id}
-                  className="group flex flex-col bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-lilaPastel/50 rounded-2xl shadow-sm hover:shadow-xl pb-2"
+                  className="group flex flex-col bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 rounded-2xl shadow-sm hover:shadow-xl pb-2"
                 >
                   {/* Imagen del Producto */}
                   <div className="relative h-64 md:h-72 bg-cream overflow-hidden rounded-t-2xl">
@@ -143,7 +145,7 @@ export default async function TiendaPage({
             </div>
           ) : (
             /* Estado Vacío (Sin productos en la categoría) */
-            <div className="text-center py-24 bg-white rounded-3xl border border-lilaPastel shadow-sm">
+            <div className="text-center py-24 bg-white rounded-3xl shadow-sm">
               <MagnifyingGlassIcon size={48} className="mx-auto mb-4 text-lilaPastel" weight="light" />
               <h3 className="text-xl font-bold text-[#3A243F] mb-2">No encontramos productos</h3>
               <p className="text-gray-500 max-w-sm mx-auto mb-6">

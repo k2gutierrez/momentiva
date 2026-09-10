@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchInstagramFeed } from "@/lib/instagram";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
@@ -23,6 +24,9 @@ export default async function CuidadosPage() {
     .select("*")
     .eq("is_active", true)
     .order("order_index", { ascending: true });
+
+  const graphPosts = await fetchInstagramFeed(12);
+  const instaFeed = graphPosts.length > 0 ? graphPosts : (instaPosts || []);
 
   // Arreglo de cuidados
   const cuidados = [
@@ -69,7 +73,7 @@ export default async function CuidadosPage() {
       </section>
 
       {/* Instagram Feed Section */}
-      <InstagramFeed posts={instaPosts || []} />
+      <InstagramFeed posts={instaFeed} />
 
       {/* Footer */}
       <Footer />

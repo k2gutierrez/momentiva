@@ -1,10 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { fetchInstagramFeed } from "@/lib/instagram";
 import Header from "@/components/Header";
 import AuthModal from "@/components/AuthModal";
 import HeroCarousel from "@/components/HeroCarousel";
 import InstagramFeed from "@/components/InstagramFeed";
 import Link from "next/link";
-import { FacebookLogoIcon, InstagramLogoIcon, YoutubeLogoIcon } from "@phosphor-icons/react/dist/ssr";
 import Footer from "@/components/Footer";
 
 export const dynamic = 'force-dynamic';
@@ -26,12 +26,16 @@ export default async function Home() {
     .eq("is_active", true)
     .order("order_index", { ascending: true });
 
-  // 3. Fetch active Instagram posts
+  // 3. Feed de Instagram: preferimos la sincronización automática (Graph API);
+  //    si no hay token o falla, usamos el feed manual del admin.
   const { data: instaPosts } = await supabase
     .from("instagram_feed")
     .select("*")
     .eq("is_active", true)
     .order("order_index", { ascending: true });
+
+  const graphPosts = await fetchInstagramFeed(12);
+  const instaFeed = graphPosts.length > 0 ? graphPosts : (instaPosts || []);
 
   return (
     <main className="bg-white min-h-screen">
@@ -41,28 +45,45 @@ export default async function Home() {
       {/* Dynamic Hero Carousel */}
       <HeroCarousel slides={carouselSlides || []} />
 
+      {/* Lema de marca */}
+      <section className="bg-white py-10 px-4 sm:px-8">
+        <div className="max-w-4xl mx-auto text-center">
+          <p className="text-xl md:text-2xl font-bold text-berenjena leading-relaxed">
+            Momentos que se quedan por más tiempo.
+          </p>
+          <p className="text-gray-600 text-base md:text-lg mt-2 leading-relaxed">
+            Regalos personalizados y globos burbuja con aire —no helio— que acompañan tus celebraciones por semanas. Entregamos en Guadalajara, Zapopan y Tlajomulco de Zúñiga.
+          </p>
+        </div>
+      </section>
+
       {/* Quick Filters (Cuadros Grandes) */}
       <section className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-            <Link href="/tienda?categoria=aniversario" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
-              <img src="/assets/íconos-09.png" alt="Aniversarios" className="object-contain" />
+            <Link href="/tienda?categoria=aniversarios" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
+              <img src="/assets/íconos-09-transparent.png" alt="Aniversarios" className="w-full h-full object-contain" />
+              <span className="text-sm font-bold text-berenjena mt-3 group-hover:text-terracota transition-colors">Aniversarios</span>
             </Link>
-            <Link href="/tienda?categoria=bebe" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
-              <img src="/assets/íconos-06.png" alt="Bebé" className="object-contain" />
+            <Link href="/tienda?categoria=beb" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
+              <img src="/assets/íconos-06-transparent.png" alt="Bebé" className="w-full h-full object-contain" />
+              <span className="text-sm font-bold text-berenjena mt-3 group-hover:text-terracota transition-colors">Bebé</span>
             </Link>
-            <Link href="/tienda?categoria=cumpleanos" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
-              <img src="/assets/íconos-07.png" alt="Cumpleaños" className="object-contain" />
+            <Link href="/tienda?categoria=cumplea-os" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
+              <img src="/assets/íconos-07-transparent.png" alt="Cumpleaños" className="w-full h-full object-contain" />
+              <span className="text-sm font-bold text-berenjena mt-3 group-hover:text-terracota transition-colors">Cumpleaños</span>
             </Link>
             <Link href="/tienda?categoria=especiales" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
-              <img src="/assets/íconos-10.png" alt="Especiales" className="object-contain" />
+              <img src="/assets/íconos-10-transparent.png" alt="Especiales" className="w-full h-full object-contain" />
+              <span className="text-sm font-bold text-berenjena mt-3 group-hover:text-terracota transition-colors">Especiales</span>
             </Link>
           </div>
         </div>
       </section>
 
       {/* Catalog Grid */}
-      <section id="catalog" className="bg-white max-w-7xl mx-auto px-4 sm:px-8 py-16">
+      <section id="catalog" className="bg-cream/60 py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-berenjena">¡Globos personalizados para cualquier ocasión!</h2>
         </div>
@@ -73,7 +94,7 @@ export default async function Home() {
               <Link
                 href={`/product/${product.slug}`}
                 key={product.id}
-                className="group flex flex-col bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 border border-transparent hover:border-lilaPastel/50 rounded-xl pb-2"
+                className="group flex flex-col bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 rounded-2xl shadow-md hover:shadow-xl pb-2"
               >
                 <div className="relative h-64 md:h-72 bg-cream overflow-hidden rounded-xl">
                   {product.images && product.images.length > 0 ? (
@@ -101,14 +122,15 @@ export default async function Home() {
             ))}
           </div>
         ) : (
-          <div className="text-center py-20 bg-white rounded-3xl border border-lilaPastel p-12">
+          <div className="text-center py-20 bg-white rounded-3xl p-12">
             <p className="text-gray-500 text-lg">Aún no hay productos visibles en el catálogo.</p>
           </div>
         )}
+        </div>
       </section>
 
-      {/* Instagram Feed Section: PASAMOS LA DATA REAL */}
-      <InstagramFeed posts={instaPosts || []} />
+      {/* Instagram Feed Section: sincronizado con Instagram */}
+      <InstagramFeed posts={instaFeed} />
 
       {/* Footer */}
       <Footer />

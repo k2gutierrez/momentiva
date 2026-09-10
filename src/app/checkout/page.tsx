@@ -3,28 +3,37 @@
 import React, { useEffect, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { cartItemsAtom, cartSubtotalAtom } from "@/store/cartStore";
+import { userProfileAtom } from "@/store/authStore";
 import Header from "@/components/Header";
 import { createClient } from "@/lib/supabase/client";
 import { processCheckoutOrder, validateCoupon } from "@/actions/checkout";
 import { MapPinIcon, CalendarBlankIcon, TicketIcon, CheckCircleIcon, ArrowLeftIcon, CreditCardIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
+interface DeliveryZone {
+  id: string;
+  zip_code: string;
+  municipality: string;
+  delivery_cost: number;
+  is_available: boolean;
+}
+
 export default function CheckoutPage() {
-  const router = useRouter();
   const [cart, setCart] = useAtom(cartItemsAtom);
   const subtotal = useAtomValue(cartSubtotalAtom);
+  const [profile] = useAtom(userProfileAtom);
 
   // Delivery Zip Code Matrix state
   const [zipCode, setZipCode] = useState("");
-  const [deliveryZone, setDeliveryZone] = useState<any>(null);
+  const [deliveryZone, setDeliveryZone] = useState<DeliveryZone | null>(null);
   const [checkingZip, setCheckingZip] = useState(false);
   const [zipError, setZipError] = useState("");
 
-  // Dates
+  // Dates (prellenados desde el carrito si ya eligieron en la página del producto)
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
-  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryDate, setDeliveryDate] = useState(() => cart[0]?.deliveryDate || "");
+  const [deliveryTime, setDeliveryTime] = useState(() => cart[0]?.deliveryTime || "");
 
   // Coupon state
   const [couponInput, setCouponInput] = useState("");
@@ -32,9 +41,10 @@ export default function CheckoutPage() {
   const [discountAmount, setDiscountAmount] = useState(0);
 
   // Address fields
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [streetAddress, setStreetAddress] = useState("");
+  // Address fields (prellenados con los datos del perfil si hay sesión iniciada)
+  const [fullName, setFullName] = useState(() => profile?.full_name || "");
+  const [phone, setPhone] = useState(() => profile?.phone || "");
+  const [streetAddress, setStreetAddress] = useState(() => profile?.address || "");
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,14 +78,14 @@ export default function CheckoutPage() {
       .from("delivery_zones")
       .select("*")
       .eq("zip_code", zipCode)
-      .eq("is_active", true)
+      .eq("is_available", true)
       .single();
 
     if (error || !data) {
       setZipError("Lo sentimos, aún no tenemos cobertura de entrega en este código postal.");
     } else {
-      setDeliveryZone(data);
-      toast.success(`Cobertura confirmada: ${data.zone_name} ($${data.price} MXN)`);
+      setDeliveryZone(data as DeliveryZone);
+      toast.success(`Cobertura confirmada: ${data.municipality} ($${data.delivery_cost} MXN)`);
     }
 
     setCheckingZip(false);
@@ -115,9 +125,14 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!deliveryTime) {
+      toast.error("Por favor selecciona un horario de entrega.");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const deliveryFee = deliveryZone.price || 0;
+    const deliveryFee = deliveryZone.delivery_cost || 0;
     const totalAmount = Math.max(0, subtotal - discountAmount) + deliveryFee;
     
     // Estimate gross cost placeholder for margins
@@ -131,7 +146,8 @@ export default function CheckoutPage() {
         streetAddress,
         notes,
         municipality: deliveryZone.municipality,
-        zoneName: deliveryZone.zone_name,
+        zoneName: deliveryZone.municipality,
+        deliveryTime,
       },
       deliveryDate,
       couponCode: appliedCoupon || undefined,
@@ -141,12 +157,22 @@ export default function CheckoutPage() {
       totalAmount,
       totalCost,
       cartItems: cart,
+      origin: window.location.origin,
     });
 
     if (result.success) {
-      setCart([]); // Clear Jotai cart
-      setOrderComplete(true);
-      toast.success("¡Pedido realizado con éxito!");
+      if (result.initPoint) {
+        // El carrito se limpia en la página de resultado del pago (ClearCartOnMount),
+        // así la redirección a Mercado Pago es inmediata y sin parpadeos.
+        toast.success("Pedido registrado. Te llevamos a Mercado Pago para pagar...");
+        window.location.href = result.initPoint;
+        return;
+      }
+
+      toast.error(
+        "Tu pedido se registró, pero no se pudo iniciar el pago: " +
+          (result.warning || "inténtalo de nuevo o contáctanos por WhatsApp.")
+      );
     } else {
       toast.error(result.error || "Error al procesar el pedido");
     }
@@ -192,7 +218,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const deliveryFee = deliveryZone ? deliveryZone.price : 0;
+  const deliveryFee = deliveryZone ? deliveryZone.delivery_cost : 0;
   const totalAmount = Math.max(0, subtotal - discountAmount) + deliveryFee;
 
   return (
@@ -213,8 +239,8 @@ export default function CheckoutPage() {
           <div className="lg:col-span-2 space-y-8">
             
             {/* 1. ZIP CODE COVERAGE VALIDATOR */}
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-lilaPastel space-y-4">
-              <h3 className="text-xl font-bold text-berenjena flex items-center gap-2 border-b border-lilaPastel pb-3">
+            <div className="bg-white p-8 rounded-3xl shadow-sm space-y-4">
+              <h3 className="text-xl font-bold text-berenjena flex items-center gap-2 pb-3">
                 <MapPinIcon size={24} className="text-terracota" />
                 1. Cobertura de Envío (C.P.)
               </h3>
@@ -245,19 +271,19 @@ export default function CheckoutPage() {
               {zipError && <p className="text-sm font-bold text-red-500">{zipError}</p>}
 
               {deliveryZone && (
-                <div className="p-4 bg-sage/10 border border-sage/30 rounded-2xl flex justify-between items-center text-sage">
+                <div className="p-4 bg-sage/10 rounded-2xl flex justify-between items-center text-sage">
                   <div>
-                    <p className="font-bold text-berenjena">{deliveryZone.zone_name}</p>
-                    <p className="text-xs text-gray-500">{deliveryZone.municipality}</p>
+                    <p className="font-bold text-berenjena">{deliveryZone.municipality}</p>
+                    <p className="text-xs text-gray-500">C.P. {deliveryZone.zip_code}</p>
                   </div>
-                  <span className="font-bold text-lg text-terracota">+${deliveryZone.price.toFixed(2)} MXN</span>
+                  <span className="font-bold text-lg text-terracota">+${deliveryZone.delivery_cost.toFixed(2)} MXN</span>
                 </div>
               )}
             </div>
 
             {/* 2. DELIVERY ADDRESS & DATE */}
-            <form id="checkout-form" onSubmit={handlePlaceOrder} className="bg-white p-8 rounded-3xl shadow-sm border border-lilaPastel space-y-6">
-              <h3 className="text-xl font-bold text-berenjena flex items-center gap-2 border-b border-lilaPastel pb-3">
+            <form id="checkout-form" onSubmit={handlePlaceOrder} className="bg-white p-8 rounded-3xl shadow-sm space-y-6">
+              <h3 className="text-xl font-bold text-berenjena flex items-center gap-2 pb-3">
                 <CalendarBlankIcon size={24} className="text-terracota" />
                 2. Datos de Entrega
               </h3>
@@ -317,6 +343,29 @@ export default function CheckoutPage() {
               </div>
 
               <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Horario de Entrega</label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[
+                    { value: "9:00 - 13:00", label: "9:00 am – 1:00 pm" },
+                    { value: "13:00 - 18:00", label: "1:00 pm – 6:00 pm" },
+                  ].map((slot) => (
+                    <button
+                      key={slot.value}
+                      type="button"
+                      onClick={() => setDeliveryTime(slot.value)}
+                      className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                        deliveryTime === slot.value
+                          ? "bg-terracota text-white shadow-md"
+                          : "bg-cream/30 text-berenjena border border-lilaPastel hover:border-terracota"
+                      }`}
+                    >
+                      {slot.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-bold text-berenjena mb-1">Notas Especiales / Dedicatoria</label>
                 <textarea
                   rows={3}
@@ -333,24 +382,59 @@ export default function CheckoutPage() {
           {/* Right Summary Column (1 col) */}
           <div className="lg:col-span-1 space-y-6">
             
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-lilaPastel sticky top-28 space-y-6">
-              <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-3">Resumen del Pedido</h3>
+            <div className="bg-white p-8 rounded-3xl shadow-sm sticky top-28 space-y-6">
+              <h3 className="text-xl font-bold text-berenjena pb-3">Resumen del Pedido</h3>
 
-              {/* Items List */}
-              <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+              {/* Items List con personalización, fecha y horario */}
+              <div className="space-y-3 max-h-72 overflow-y-auto pr-2">
                 {cart.map((item) => (
-                  <div key={item.cartItemId} className="flex justify-between items-center text-sm">
-                    <div>
-                      <p className="font-bold text-berenjena">{item.name}</p>
-                      <p className="text-xs text-gray-400">Cant: {item.quantity}</p>
+                  <div key={item.cartItemId} className="text-sm">
+                    <div className="flex justify-between items-start gap-2">
+                      <div className="flex items-center gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={item.image} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-cream" />
+                        <div>
+                          <p className="font-bold text-berenjena leading-tight">{item.name}</p>
+                          <p className="text-xs text-gray-400">Cant: {item.quantity}</p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-terracota shrink-0">
+                        ${(item.unitPrice * item.quantity).toFixed(2)}
+                      </span>
                     </div>
-                    <span className="font-bold text-terracota">${(item.unitPrice * item.quantity).toFixed(2)}</span>
+
+                    {/* Personalización elegida */}
+                    {Object.entries(item.selectedOptions || {})
+                      .filter(([, v]) => {
+                        if (v === undefined || v === false || v === "") return false;
+                        if (Array.isArray(v)) return v.length > 0;
+                        return true;
+                      })
+                      .map(([key, v]) => (
+                        <p key={key} className="text-xs text-gray-500 mt-1 ml-[60px]">
+                          <span className="font-bold">{key}:</span>{" "}
+                          {Array.isArray(v) ? `${v.length} foto(s) adjunta(s)` : v === true ? "Sí" : String(v)}
+                        </p>
+                      ))}
+
+                    {/* Fecha y horario */}
+                    {item.deliveryDate && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        📅{" "}
+                        {new Date(`${item.deliveryDate}T00:00:00`).toLocaleDateString("es-MX", {
+                          day: "numeric",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                        {item.deliveryTime ? ` · ${item.deliveryTime}` : ""}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
 
               {/* Coupon Form */}
-              <form onSubmit={handleApplyCoupon} className="pt-4 border-t border-lilaPastel">
+              <form onSubmit={handleApplyCoupon} className="pt-4">
                 <label className="block text-xs font-bold text-berenjena mb-1 flex items-center gap-1">
                   <TicketIcon size={16} className="text-terracota" /> Cupón de Descuento
                 </label>
@@ -369,7 +453,7 @@ export default function CheckoutPage() {
               </form>
 
               {/* Price Calculations */}
-              <div className="space-y-2 pt-4 border-t border-lilaPastel text-sm">
+              <div className="space-y-2 pt-4 text-sm">
                 <div className="flex justify-between text-gray-600">
                   <span>Subtotal</span>
                   <span>${subtotal.toFixed(2)} MXN</span>
@@ -387,7 +471,7 @@ export default function CheckoutPage() {
                   <span>{deliveryZone ? `$${deliveryFee.toFixed(2)} MXN` : "Por calcular"}</span>
                 </div>
 
-                <div className="flex justify-between text-lg font-bold text-berenjena pt-2 border-t border-lilaPastel">
+                <div className="flex justify-between text-lg font-bold text-berenjena pt-2">
                   <span>Total</span>
                   <span className="text-terracota">${totalAmount.toFixed(2)} MXN</span>
                 </div>
@@ -400,8 +484,12 @@ export default function CheckoutPage() {
                 className="w-full flex items-center justify-center gap-2 bg-terracota hover:bg-opacity-90 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg transition-transform hover:scale-[1.02]"
               >
                 <CreditCardIcon size={22} weight="bold" />
-                {isSubmitting ? "Procesando..." : "Confirmar y Pagar"}
+                {isSubmitting ? "Procesando..." : "Pagar con Mercado Pago"}
               </button>
+
+              <p className="text-[11px] text-gray-500 text-center leading-relaxed">
+                Serás redirigido a Mercado Pago para completar tu pago de forma segura (tarjeta, OXXO o SPEI).
+              </p>
 
             </div>
 

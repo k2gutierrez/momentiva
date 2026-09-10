@@ -3,6 +3,7 @@
 import React, { useRef, useEffect } from 'react';
 import { Stage, Layer, Image as KonvaImage, Transformer, Group, Rect } from 'react-konva';
 import useImage from 'use-image';
+import type Konva from 'konva';
 
 interface CupCanvasProps {
   uploadedImageSrc: string | null;
@@ -12,13 +13,15 @@ export default function CupCanvas({ uploadedImageSrc }: CupCanvasProps) {
   const [cupBg] = useImage('/cup.jpg'); 
   const [userImage] = useImage(uploadedImageSrc || '');
   
-  const imageRef = useRef<any>(null);
-  const trRef = useRef<any>(null);
+  const imageRef = useRef<Konva.Image>(null);
+  const trRef = useRef<Konva.Transformer>(null);
 
   useEffect(() => {
-    if (userImage && imageRef.current && trRef.current) {
-      trRef.current.nodes([imageRef.current]);
-      trRef.current.getLayer().batchDraw();
+    const imageNode = imageRef.current;
+    const trNode = trRef.current;
+    if (userImage && imageNode && trNode) {
+      trNode.nodes([imageNode]);
+      trNode.getLayer()?.batchDraw();
     }
   }, [userImage]);
 

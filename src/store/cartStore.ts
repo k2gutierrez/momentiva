@@ -9,8 +9,10 @@ export interface CartItem {
   image: string;
   unitPrice: number;
   quantity: number;
-  selectedOptions?: Record<string, any>;
+  selectedOptions?: Record<string, string | boolean | string[] | undefined>;
   customCupImage?: string | null;
+  deliveryDate?: string | null;
+  deliveryTime?: string | null;
 }
 
 // Controls whether the slide-over drawer is open

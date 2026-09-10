@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useSetAtom } from "jotai";
-import { cartItemsAtom, cartOpenAtom } from "@/store/cartStore";
+import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { ShoppingCartIcon } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 
@@ -14,25 +14,58 @@ interface AddToCartButtonProps {
     image: string;
     slug: string;
   };
+  selections?: Record<string, string | boolean | string[]>;
+  deliveryDate?: string;
+  deliveryTime?: string;
+  blockedDates?: string[];
 }
 
-export default function AddToCartButton({ product }: AddToCartButtonProps) {
+export default function AddToCartButton({
+  product,
+  selections,
+  deliveryDate,
+  deliveryTime,
+  blockedDates = [],
+}: AddToCartButtonProps) {
   const setCart = useSetAtom(cartItemsAtom);
   const setCartOpen = useSetAtom(cartOpenAtom);
 
   const handleAddToCart = () => {
-    setCart((prev: any) => {
-      // Verificamos si ya existe el producto normal para sumarle 1 a la cantidad
-      const existing = prev.find((item: any) => item.productId === product.id);
+    // Validar fecha y horario de entrega
+    if (!deliveryDate) {
+      toast.error("Por favor elige una fecha de entrega");
+      return;
+    }
+    if (blockedDates.includes(deliveryDate)) {
+      toast.error("La fecha seleccionada no está disponible. Elige otro día.");
+      return;
+    }
+    if (!deliveryTime) {
+      toast.error("Por favor elige un horario de entrega");
+      return;
+    }
+
+    // Firma única: mismo producto con las mismas opciones y misma fecha/horario = sumar cantidad
+    const signature = JSON.stringify({ selections: selections || {}, deliveryDate, deliveryTime });
+
+    setCart((prev: CartItem[]) => {
+      const existing = prev.find(
+        (item) =>
+          item.productId === product.id &&
+          JSON.stringify({
+            selections: item.selectedOptions || {},
+            deliveryDate: item.deliveryDate,
+            deliveryTime: item.deliveryTime,
+          }) === signature
+      );
       if (existing) {
-        return prev.map((item: any) =>
+        return prev.map((item) =>
           item.cartItemId === existing.cartItemId
             ? { ...item, quantity: item.quantity + 1 }
             : item
         );
       }
-      
-      // Si es nuevo, lo metemos al arreglo
+
       return [
         ...prev,
         {
@@ -43,6 +76,9 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
           quantity: 1,
           image: product.image,
           slug: product.slug,
+          selectedOptions: selections || {},
+          deliveryDate,
+          deliveryTime,
         },
       ];
     });
@@ -52,7 +88,7 @@ export default function AddToCartButton({ product }: AddToCartButtonProps) {
   };
 
   return (
-    <button 
+    <button
       onClick={handleAddToCart}
       className="w-full bg-[#3A243F] hover:bg-opacity-90 text-white font-bold py-5 rounded-2xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 text-lg mb-4"
     >

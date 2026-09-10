@@ -1,29 +1,48 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Trash, Power, Image as ImageIcon } from "@phosphor-icons/react/dist/ssr";
+import { Plus, Trash, Power, Image as ImageIcon, PencilSimple, CheckCircle } from "@phosphor-icons/react/dist/ssr";
 import { createClient } from "@/lib/supabase/client";
-import { createCarouselSlide, toggleCarouselSlide, deleteCarouselSlide } from "@/actions/carousels";
+import { createCarouselSlide, toggleCarouselSlide, deleteCarouselSlide, updateCarouselSlideImages } from "@/actions/carousels";
 import { toast } from "sonner";
 
+interface CarouselSlideRow {
+  id: string;
+  title: string | null;
+  image_url: string;
+  mobile_image_url: string | null;
+  order_index: number;
+  is_active: boolean;
+}
+
 export default function AdminCarouselsPage() {
-  const [slides, setSlides] = useState<any[]>([]);
+  const [slides, setSlides] = useState<CarouselSlideRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
-  const fetchSlides = async () => {
-    setIsLoading(true);
+  const loadSlides = async (): Promise<CarouselSlideRow[]> => {
     const supabase = createClient();
     const { data } = await supabase
       .from("homepage_carousel")
       .select("*")
       .order("order_index", { ascending: true });
 
-    if (data) setSlides(data);
+    return data ?? [];
+  };
+
+  const refreshSlides = async () => {
+    setIsLoading(true);
+    setSlides(await loadSlides());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchSlides = async () => {
+      setIsLoading(true);
+      setSlides(await loadSlides());
+      setIsLoading(false);
+    };
     fetchSlides();
   }, []);
 
@@ -36,8 +55,11 @@ export default function AdminCarouselsPage() {
 
     if (result.success) {
       toast.success("Imagen agregada al carrusel");
+      if (result.note) {
+        toast.info(result.note, { duration: 9000 });
+      }
       (e.target as HTMLFormElement).reset();
-      fetchSlides();
+      refreshSlides();
     } else {
       toast.error(result.error || "Error al agregar imagen");
     }
@@ -49,7 +71,7 @@ export default function AdminCarouselsPage() {
     const result = await toggleCarouselSlide(id, currentStatus);
     if (result.success) {
       toast.success(currentStatus ? "Slide desactivado" : "Slide activado");
-      fetchSlides();
+      refreshSlides();
     } else {
       toast.error("Error al actualizar estado");
     }
@@ -60,10 +82,28 @@ export default function AdminCarouselsPage() {
     const result = await deleteCarouselSlide(id);
     if (result.success) {
       toast.success("Slide eliminado");
-      fetchSlides();
+      refreshSlides();
     } else {
       toast.error("Error al eliminar slide");
     }
+  };
+
+  const handleUpdateImages = async (e: React.FormEvent<HTMLFormElement>, id: string) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const result = await updateCarouselSlideImages(id, formData);
+
+    if (result.success) {
+      toast.success("Imágenes del slide actualizadas");
+      setEditingId(null);
+      refreshSlides();
+    } else {
+      toast.error(result.error || "Error al actualizar imágenes");
+    }
+
+    setIsSubmitting(false);
   };
 
   return (
@@ -107,14 +147,35 @@ export default function AdminCarouselsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-berenjena mb-1">Fotografía Banner</label>
+                <label className="block text-sm font-bold text-berenjena mb-1">Fotografía Banner (Desktop)</label>
                 <input
                   type="file"
                   name="image"
-                  accept="image/*"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
                   required
                   className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sage/20 file:text-sage hover:file:bg-sage/30 cursor-pointer"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Imagen para Celular (Opcional)</label>
+                <input
+                  type="file"
+                  name="mobileImage"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  className="w-full text-xs text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sage/20 file:text-sage hover:file:bg-sage/30 cursor-pointer"
+                />
+                <p className="text-[11px] text-gray-400 mt-1">
+                  Si no subes una, en el celular se usará la imagen de escritorio recortada al centro.
+                </p>
+              </div>
+
+              <div className="bg-cream/60 rounded-lg p-3 text-[11px] text-gray-600 leading-relaxed">
+                <p className="font-bold text-berenjena mb-1">📐 Medidas recomendadas:</p>
+                <p>• Desktop: <strong>3600 × 1552 px</strong> (proporción 2.32:1) — mínimo 2000 px de ancho.</p>
+                <p>• Celular: <strong>1200 × 800 px</strong> (proporción 3:2, apaisada/rectangular) — mínimo 800 px de ancho.</p>
+                <p>• Formato: <strong>PNG</strong> (recomendado) o JPG/WebP. Peso máximo: <strong>5 MB</strong> por imagen.</p>
+                <p>• Deja el contenido importante (texto/logo) en el centro, lejos de los bordes.</p>
               </div>
 
               <button
@@ -139,41 +200,102 @@ export default function AdminCarouselsPage() {
             </div>
           ) : (
             slides.map((s) => (
-              <div
-                key={s.id}
-                className={`bg-white p-4 rounded-xl border border-lilaPastel shadow-sm flex items-center justify-between gap-4 ${
-                  !s.is_active ? "opacity-50 grayscale" : ""
-                }`}
-              >
-                <img
-                  src={s.image_url}
-                  alt={s.title || "Banner"}
-                  className="w-28 h-20 object-cover rounded-lg border border-lilaPastel"
-                />
-                <div className="flex-1">
-                  <h4 className="font-bold text-berenjena text-lg">{s.title || "Sin título"}</h4>
-                  <span className="inline-block text-xs font-mono bg-cream px-2.5 py-1 rounded text-sage font-bold">
-                    Orden: #{s.order_index}
-                  </span>
+              <div key={s.id} className="space-y-2">
+                <div
+                  className={`bg-white p-4 rounded-xl border border-lilaPastel shadow-sm flex items-center justify-between gap-4 ${
+                    !s.is_active ? "opacity-50 grayscale" : ""
+                  }`}
+                >
+                  <img
+                    src={s.image_url}
+                    alt={s.title || "Banner"}
+                    className="w-28 h-20 object-cover rounded-lg border border-lilaPastel"
+                  />
+                  <div className="flex-1">
+                    <h4 className="font-bold text-berenjena text-lg">{s.title || "Sin título"}</h4>
+                    <span className="inline-block text-xs font-mono bg-cream px-2.5 py-1 rounded text-sage font-bold">
+                      Orden: #{s.order_index}
+                    </span>
+                    {s.mobile_image_url && (
+                      <span className="ml-2 inline-block text-xs font-bold bg-sage/15 text-sage px-2.5 py-1 rounded">
+                        📱 Versión móvil incluida
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setEditingId(editingId === s.id ? null : s.id)}
+                      className="p-2 text-berenjena hover:bg-cream rounded-lg transition-colors"
+                      title="Editar imágenes (desktop / celular)"
+                    >
+                      <PencilSimple size={20} />
+                    </button>
+                    <button
+                      onClick={() => handleToggle(s.id, s.is_active)}
+                      className={`p-2 rounded-lg transition-colors ${
+                        s.is_active ? "text-red-400 hover:bg-red-50" : "text-green-500 hover:bg-green-50"
+                      }`}
+                      title={s.is_active ? "Desactivar" : "Activar"}
+                    >
+                      <Power size={20} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(s.id)}
+                      className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
+                      title="Eliminar"
+                    >
+                      <Trash size={20} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleToggle(s.id, s.is_active)}
-                    className={`p-2 rounded-lg transition-colors ${
-                      s.is_active ? "text-red-400 hover:bg-red-50" : "text-green-500 hover:bg-green-50"
-                    }`}
-                    title={s.is_active ? "Desactivar" : "Activar"}
+
+                {/* Formulario inline para actualizar imágenes del slide */}
+                {editingId === s.id && (
+                  <form
+                    onSubmit={(e) => handleUpdateImages(e, s.id)}
+                    className="bg-cream/60 p-4 rounded-xl space-y-3"
                   >
-                    <Power size={20} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    className="p-2 text-red-400 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Eliminar"
-                  >
-                    <Trash size={20} />
-                  </button>
-                </div>
+                    <p className="text-xs font-bold text-berenjena">
+                      Reemplazar imágenes de este slide (deja vacío lo que no quieras cambiar):
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-xs font-bold text-berenjena mb-1">Banner Desktop (opcional)</label>
+                        <input
+                          type="file"
+                          name="image"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sage/20 file:text-sage cursor-pointer"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-berenjena mb-1">Banner Celular (opcional)</label>
+                        <input
+                          type="file"
+                          name="mobileImage"
+                          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                          className="w-full text-xs text-gray-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-sage/20 file:text-sage cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={isSubmitting}
+                        className="flex items-center gap-1 bg-terracota hover:bg-opacity-90 disabled:opacity-70 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors"
+                      >
+                        <CheckCircle size={16} /> {isSubmitting ? "Guardando..." : "Guardar Imágenes"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingId(null)}
+                        className="text-xs font-bold text-gray-500 hover:text-berenjena px-4 py-2"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                )}
               </div>
             ))
           )}

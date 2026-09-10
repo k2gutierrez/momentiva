@@ -3,8 +3,10 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
 import CupPreviewer from "@/components/CupPreviewer";
-import ProductOptionsForm from "@/components/ProductOptionsForm"; 
-import { notFound } from "next/navigation";
+import ProductOptionsForm from "@/components/ProductOptionsForm";
+import ProductTabs from "@/components/ProductTabs";
+import ProductGallery from "@/components/ProductGallery";
+import Link from "next/link";
 import { ShieldCheckIcon, SparkleIcon } from "@phosphor-icons/react/dist/ssr";
 
 export const dynamic = 'force-dynamic';
@@ -41,6 +43,28 @@ export default async function ProductPage({
 
   const mainImage = product.images && product.images.length > 0 ? product.images[0] : null;
 
+  // Complementos ("Complementa tu regalo"): productos de la categoría por slug
+  const { data: complementCategory } = await supabase
+    .from("categories")
+    .select("id")
+    .eq("slug", "complementa-tu-regalo")
+    .maybeSingle();
+
+  const { data: complementos } = complementCategory
+    ? await supabase
+        .from("products")
+        .select("*")
+        .eq("category_id", complementCategory.id)
+        .eq("is_active", true)
+        .order("created_at", { ascending: false })
+    : { data: null };
+
+  // Fechas bloqueadas para el selector de entrega
+  const { data: blockedDatesRows } = await supabase
+    .from("blocked_dates")
+    .select("blocked_date");
+  const blockedDates = (blockedDatesRows || []).map((b) => b.blocked_date);
+
   return (
     <main className="bg-white min-h-screen flex flex-col">
       <AuthModal />
@@ -51,13 +75,7 @@ export default async function ProductPage({
           
           {/* Columna Izquierda: Galería de Imágenes */}
           <div className="w-full lg:w-1/2">
-            <div className="relative aspect-[4/5] bg-[#F5EFF6] rounded-3xl overflow-hidden border border-lilaPastel shadow-sm">
-              {mainImage ? (
-                <img src={mainImage} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-sage font-bold">Sin imagen</div>
-              )}
-            </div>
+            <ProductGallery images={product.images || []} name={product.name} />
           </div>
 
           {/* Columna Derecha: Información y Compra */}
@@ -101,20 +119,74 @@ export default async function ProductPage({
                 slug: product.slug,
                 image: mainImage || "/placeholder.jpg",
                 custom_options: product.custom_options
-              }} 
+              }}
+              anticipationDays={product.anticipation_days || 0}
+              blockedDates={blockedDates}
             />
 
           </div>
         </div>
       </section>
 
+      {/* Pestañas: Descripción e Información adicional */}
+      <ProductTabs description={product.description || ""} />
+
       {/* Sección: Complementa tu Regalo */}
-      <section className="bg-cream border-t border-lilaPastel py-16 md:py-24">
+      <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-12">
+            <span className="text-sm font-bold text-sage uppercase tracking-widest block mb-2">
+              Complementos especiales
+            </span>
             <h3 className="text-3xl md:text-4xl font-bold text-[#3A243F]">Complementa tu regalo</h3>
+            <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
+              Suma detalles únicos a tu globo: taza personalizada, suculentas, cervezas, pastel, copa de postre y charcutería.
+            </p>
           </div>
-          <CupPreviewer />
+
+          {/* Personalizador de Taza: solo si el producto lo tiene habilitado (is_custom_cup) */}
+          {product.is_custom_cup && <CupPreviewer />}
+
+          {/* Grid de complementos (desde Supabase, categoría "Complementa tu regalo") */}
+          {complementos && complementos.length > 0 ? (
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mt-12">
+              {complementos.map((comp) => (
+                <Link
+                  href={`/product/${comp.slug}`}
+                  key={comp.id}
+                  className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+                >
+                  <div className="aspect-square bg-cream overflow-hidden">
+                    {comp.images && comp.images.length > 0 ? (
+                      <img
+                        src={comp.images[0]}
+                        alt={comp.name}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-sage text-xs font-bold bg-lilaPastel/30">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 text-center">
+                    <h4 className="text-sm font-bold text-[#3A243F] leading-tight group-hover:text-terracota transition-colors">
+                      {comp.name}
+                    </h4>
+                    <p className="text-terracota font-bold mt-2">
+                      ${Number(comp.price).toFixed(2)}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-10 mt-12 bg-white rounded-2xl border border-dashed border-lilaPastel">
+              <p className="text-gray-500 text-sm">
+                Muy pronto podrás agregar suculentas, cervezas, pastel, copa de postre y charcutería a tu regalo.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

@@ -8,13 +8,13 @@ export default function Footer() {
         
         {/* Social Icons */}
         <div className="flex gap-4">
-          <a href="#" className="p-2 hover:text-terracota transition-colors" aria-label="Facebook">
+          <a href="https://www.facebook.com/momentiva.gdl" target="_blank" rel="noopener noreferrer" className="p-2 hover:text-terracota transition-colors" aria-label="Facebook">
             <FacebookLogoIcon size={24} weight="fill" />
           </a>
-          <a href="https://instagram.com/momentiva.gdl" className="p-2 hover:text-terracota transition-colors" aria-label="Instagram">
+          <a href="https://instagram.com/momentiva.gdl" target="_blank" rel="noopener noreferrer" className="p-2 hover:text-terracota transition-colors" aria-label="Instagram">
             <InstagramLogoIcon size={24} weight="fill" />
           </a>
-          <a href="#" className="p-2 hover:text-terracota transition-colors" aria-label="YouTube">
+          <a href="https://www.youtube.com/@MomentivaGDL" target="_blank" rel="noopener noreferrer" className="p-2 hover:text-terracota transition-colors" aria-label="YouTube">
             <YoutubeLogoIcon size={24} weight="fill" />
           </a>
         </div>

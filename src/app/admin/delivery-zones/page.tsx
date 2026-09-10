@@ -3,16 +3,22 @@
 import React, { useState, useEffect } from "react";
 import { UploadSimpleIcon, DownloadSimpleIcon, MapPinIcon, TrashIcon } from "@phosphor-icons/react/dist/ssr";
 import { createClient } from "@/lib/supabase/client";
-import { bulkUpsertDeliveryZones } from "@/actions/deliveryZones";
+import { bulkUpsertDeliveryZones, type DeliveryZoneUpsertRow } from "@/actions/deliveryZones";
 import { toast } from "sonner";
 
+interface DeliveryZoneRow {
+  id: string;
+  zip_code: string;
+  municipality: string;
+  delivery_cost: number;
+}
+
 export default function AdminDeliveryZonesPage() {
-  const [zones, setZones] = useState<any[]>([]);
+  const [zones, setZones] = useState<DeliveryZoneRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
 
-  const fetchZones = async () => {
-    setIsLoading(true);
+  const loadZones = async (): Promise<DeliveryZoneRow[]> => {
     const supabase = createClient();
     const { data } = await supabase
       .from("delivery_zones")
@@ -20,11 +26,21 @@ export default function AdminDeliveryZonesPage() {
       .order("municipality", { ascending: true })
       .order("zip_code", { ascending: true });
 
-    if (data) setZones(data);
+    return data ?? [];
+  };
+
+  const refreshZones = async () => {
+    setIsLoading(true);
+    setZones(await loadZones());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchZones = async () => {
+      setIsLoading(true);
+      setZones(await loadZones());
+      setIsLoading(false);
+    };
     fetchZones();
   }, []);
 
@@ -56,7 +72,7 @@ export default function AdminDeliveryZonesPage() {
 
         // Usamos un Map en lugar de un Array para evitar duplicados.
         // La llave será el código postal.
-        const zonesMap = new Map();
+        const zonesMap = new Map<string, DeliveryZoneUpsertRow>();
 
         // Saltamos la línea 0 que son los encabezados (Codigo Postal,Municipio,Costo)
         for (let i = 1; i < lines.length; i++) {
@@ -90,12 +106,12 @@ export default function AdminDeliveryZonesPage() {
 
         if (result.success) {
           toast.success(`¡Se registraron/actualizaron ${result.count} zonas correctamente!`);
-          fetchZones();
+          refreshZones();
         } else {
           toast.error("Error al guardar en base de datos: " + result.error);
         }
-      } catch (error: any) {
-        toast.error("Error leyendo el archivo: " + error.message);
+      } catch (error: unknown) {
+        toast.error("Error leyendo el archivo: " + (error instanceof Error ? error.message : "Error desconocido"));
       } finally {
         setIsUploading(false);
         // Reseteamos el input para que puedan subir el mismo archivo si lo corrigen

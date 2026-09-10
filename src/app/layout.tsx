@@ -20,7 +20,7 @@ const caveat = Caveat({
 
 export const metadata: Metadata = {
   title: "Momentiva | Cada regalo, un momento inolvidable",
-  description: "Regalos personalizados y repostería en Guadalajara, Zapopan y Tlajomulco",
+  description: "Momentos que se quedan por más tiempo. Regalos personalizados y globos burbuja con aire —no helio— que acompañan tus celebraciones por semanas. Entregamos en Guadalajara, Zapopan y Tlajomulco de Zúñiga.",
 };
 
 export default function RootLayout({
@@ -40,9 +40,9 @@ export default function RootLayout({
               <main className="flex-grow">{children}</main>
             </div>
 
-            {/* Botón Flotante de WhatsApp */}
+            {/* Botón Flotante de WhatsApp Business */}
             <a
-              href="https://wa.me/523349427375" // Sustituye con tu número real
+              href="https://wa.me/523349427375?text=Hola%20Momentiva%2C%20quiero%20cotizar%20un%20regalo%20%F0%9F%8E%88"
               target="_blank"
               rel="noopener noreferrer"
               className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white p-3 md:p-4 rounded-full shadow-2xl transition-transform hover:scale-110 flex items-center justify-center animate-fade-in-up"

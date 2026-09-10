@@ -6,24 +6,39 @@ import { createClient } from "@/lib/supabase/client";
 import { blockDate, unblockDate } from "@/actions/calendar";
 import { toast } from "sonner";
 
+interface BlockedDateRow {
+  id: string;
+  blocked_date: string;
+  reason: string | null;
+}
+
 export default function AdminCalendarPage() {
-  const [blockedDates, setBlockedDates] = useState<any[]>([]);
+  const [blockedDates, setBlockedDates] = useState<BlockedDateRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchBlockedDates = async () => {
-    setIsLoading(true);
+  const loadBlockedDates = async (): Promise<BlockedDateRow[]> => {
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("blocked_dates")
       .select("*")
       .order("blocked_date", { ascending: true });
 
-    if (data) setBlockedDates(data);
+    return data ?? [];
+  };
+
+  const refreshBlockedDates = async () => {
+    setIsLoading(true);
+    setBlockedDates(await loadBlockedDates());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchBlockedDates = async () => {
+      setIsLoading(true);
+      setBlockedDates(await loadBlockedDates());
+      setIsLoading(false);
+    };
     fetchBlockedDates();
   }, []);
 
@@ -37,7 +52,7 @@ export default function AdminCalendarPage() {
     if (result.success) {
       toast.success("Fecha bloqueada exitosamente");
       (e.target as HTMLFormElement).reset();
-      fetchBlockedDates();
+      refreshBlockedDates();
     } else {
       toast.error(result.error || "Error al bloquear fecha");
     }
@@ -51,7 +66,7 @@ export default function AdminCalendarPage() {
     const result = await unblockDate(id);
     if (result.success) {
       toast.success("Fecha desbloqueada");
-      fetchBlockedDates();
+      refreshBlockedDates();
     } else {
       toast.error("Error al desbloquear la fecha");
     }

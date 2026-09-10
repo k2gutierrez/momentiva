@@ -2,12 +2,15 @@
 
 import React, { useState } from "react";
 import AddToCartButton from "./AddToCartButton";
+import DeliveryDateTimePicker from "./DeliveryDateTimePicker";
+import { ImageSquareIcon } from "@phosphor-icons/react/dist/ssr";
 
 interface OptionDef {
   name: string;
-  type: "text" | "select" | "checkbox";
+  type: "text" | "textarea" | "select" | "checkbox" | "image";
   required?: boolean;
   choices?: string[]; // Para los selects (ej. ["Rosa", "Azul", "Dorado"])
+  priceImpact?: number;
 }
 
 interface ProductOptionsFormProps {
@@ -19,29 +22,94 @@ interface ProductOptionsFormProps {
     slug: string;
     custom_options: OptionDef[] | null;
   };
+  anticipationDays?: number;
+  blockedDates?: string[];
 }
 
-export default function ProductOptionsForm({ product }: ProductOptionsFormProps) {
-  // Estado para guardar lo que el cliente elige
-  const [selections, setSelections] = useState<Record<string, string | boolean>>({});
+/**
+ * Comprime una imagen con un canvas para que sea ligera de guardar
+ * (máx 900px, JPEG calidad 0.72) y devuelve un dataURL.
+ */
+function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        const maxSize = 900;
+        let { width, height } = img;
+        const scale = Math.min(1, maxSize / Math.max(width, height));
+        width = Math.round(width * scale);
+        height = Math.round(height * scale);
 
-  const handleInputChange = (name: string, value: string | boolean) => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(reader.result as string);
+
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      };
+      img.onerror = () => resolve(reader.result as string);
+      img.src = reader.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+export default function ProductOptionsForm({ product, anticipationDays = 0, blockedDates = [] }: ProductOptionsFormProps) {
+  // Estado para guardar lo que el cliente elige
+  const [selections, setSelections] = useState<Record<string, string | boolean | string[]>>({});
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
+  const [deliveryDate, setDeliveryDate] = useState("");
+  const [deliveryTime, setDeliveryTime] = useState("");
+
+  const handleInputChange = (name: string, value: string | boolean | string[]) => {
     setSelections((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleImageUpload = async (name: string, files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const incoming = Array.from(files).slice(0, 5); // máx 5 fotos
+    const compressed = await Promise.all(incoming.map(compressImage));
+
+    setImagePreviews((prev) => ({
+      ...prev,
+      [name]: [...(prev[name] || []), ...compressed],
+    }));
+    setSelections((prev) => ({
+      ...prev,
+      [name]: [...((prev[name] as string[]) || []), ...compressed],
+    }));
+  };
+
+  const removeImage = (name: string, index: number) => {
+    setImagePreviews((prev) => ({
+      ...prev,
+      [name]: (prev[name] || []).filter((_, i) => i !== index),
+    }));
+    setSelections((prev) => ({
+      ...prev,
+      [name]: ((prev[name] as string[]) || []).filter((_, i) => i !== index),
+    }));
+  };
+
   // Convertimos el JSON de Supabase (si existe) a un arreglo
-  const options: OptionDef[] = Array.isArray(product.custom_options) 
-    ? product.custom_options 
+  const options: OptionDef[] = Array.isArray(product.custom_options)
+    ? product.custom_options
     : [];
 
   return (
     <div className="w-full mb-8">
       {options.length > 0 && (
-        <div className="bg-[#F5EFF6] p-5 rounded-2xl border border-lilaPastel mb-6 space-y-4">
-          <h3 className="text-[#3A243F] font-bold text-sm uppercase tracking-wider mb-2">
+        <div className="bg-[#EFE6F4] p-5 rounded-2xl mb-6 space-y-4 shadow-md">
+          <h3 className="text-[#3A243F] font-bold text-sm uppercase tracking-wider mb-2 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-terracota"></span>
             Personaliza tu detalle
           </h3>
-          
+
           {options.map((opt, idx) => (
             <div key={idx} className="flex flex-col">
               <label className="text-sm font-bold text-[#3A243F] mb-1">
@@ -54,6 +122,16 @@ export default function ProductOptionsForm({ product }: ProductOptionsFormProps)
                   required={opt.required}
                   placeholder={`Ingresa ${opt.name.toLowerCase()}`}
                   className="w-full px-4 py-3 rounded-xl border border-lilaPastel bg-white focus:outline-none focus:border-terracota text-sm text-gray-700"
+                  onChange={(e) => handleInputChange(opt.name, e.target.value)}
+                />
+              )}
+
+              {opt.type === "textarea" && (
+                <textarea
+                  rows={4}
+                  required={opt.required}
+                  placeholder={`Escribe aquí tu ${opt.name.toLowerCase()}`}
+                  className="w-full px-4 py-3 rounded-xl border border-lilaPastel bg-white focus:outline-none focus:border-terracota text-sm text-gray-700 resize-y"
                   onChange={(e) => handleInputChange(opt.name, e.target.value)}
                 />
               )}
@@ -81,13 +159,66 @@ export default function ProductOptionsForm({ product }: ProductOptionsFormProps)
                   <span className="text-sm text-gray-700">Sí, lo quiero</span>
                 </label>
               )}
+
+              {opt.type === "image" && (
+                <div className="space-y-3">
+                  <label className="flex items-center justify-center gap-2 bg-white hover:bg-cream text-[#3A243F] border-2 border-dashed border-lilaPastel px-4 py-4 rounded-xl cursor-pointer transition-colors">
+                    <ImageSquareIcon size={22} className="text-terracota" />
+                    <span className="font-bold text-sm">
+                      Sube tu(s) fotografía(s) — hasta 5
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      className="hidden"
+                      onChange={(e) => handleImageUpload(opt.name, e.target.files)}
+                    />
+                  </label>
+                  {(imagePreviews[opt.name]?.length || 0) > 0 && (
+                    <div className="flex flex-wrap gap-3">
+                      {imagePreviews[opt.name].map((src, pIdx) => (
+                        <div key={pIdx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-lilaPastel group">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={src} alt={`Foto ${pIdx + 1}`} className="w-full h-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => removeImage(opt.name, pIdx)}
+                            className="absolute inset-0 bg-black/50 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Quitar
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Pasamos el producto y las selecciones al botón del carrito (actualizaremos el botón después si lo deseas) */}
-      <AddToCartButton product={product} />
+      {/* Fecha y horario de entrega (disponibilidad inmediata) */}
+      <DeliveryDateTimePicker
+        anticipationDays={anticipationDays}
+        blockedDates={blockedDates}
+        deliveryDate={deliveryDate}
+        deliveryTime={deliveryTime}
+        onDateChange={setDeliveryDate}
+        onTimeChange={setDeliveryTime}
+      />
+
+      <div className="mt-6">
+        {/* Pasamos el producto, las selecciones y la fecha/horario al botón del carrito */}
+        <AddToCartButton
+          product={product}
+          selections={selections}
+          deliveryDate={deliveryDate}
+          deliveryTime={deliveryTime}
+          blockedDates={blockedDates}
+        />
+      </div>
     </div>
   );
 }

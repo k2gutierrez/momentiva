@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Permitir el origen del túnel Cloudflare para que el JS funcione al probar por HTTPS
+  allowedDevOrigins: ["exposure-emacs-tonight-ultimate.trycloudflare.com"],
   // webpack: (config) => {
   //   config.externals = [...config.externals, { canvas: 'canvas' }];
   //   return config;

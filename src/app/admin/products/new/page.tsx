@@ -8,39 +8,83 @@ import { createProduct } from "@/actions/products";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
+interface CustomOption {
+  name: string;
+  type: "select" | "text" | "textarea" | "checkbox" | "image";
+  priceImpact: number;
+  choices: string[];
+  required: boolean;
+}
+
+interface Category {
+  id: string;
+  name: string;
+}
+
 export default function NewProductPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [isStockItem, setIsStockItem] = useState(false);
   const [isCustomCup, setIsCustomCup] = useState(false);
-  const [categories, setCategories] = useState<any[]>([]);
-
-  // Estructura actualizada para soportar choices y required
-  const [customOptions, setCustomOptions] = useState<
-    { name: string; type: string; priceImpact: number; choices: string; required: boolean }[]
-  >([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [customOptions, setCustomOptions] = useState<CustomOption[]>([]);
 
   useEffect(() => {
     const fetchCategories = async () => {
       const supabase = createClient();
       const { data } = await supabase.from("categories").select("id, name").order("name", { ascending: true });
-      if (data) setCategories(data);
+      if (data) setCategories(data as Category[]);
     };
     fetchCategories();
   }, []);
 
   const handleAddOption = () => {
-    setCustomOptions([...customOptions, { name: "", type: "select", priceImpact: 0, choices: "", required: false }]);
+    setCustomOptions([...customOptions, { name: "", type: "select", priceImpact: 0, choices: [], required: false }]);
   };
 
   const handleRemoveOption = (index: number) => {
     setCustomOptions(customOptions.filter((_, i) => i !== index));
   };
 
-  const handleOptionChange = (index: number, field: string, value: any) => {
+  const handleOptionChange = (index: number, field: keyof CustomOption, value: unknown) => {
     const updated = [...customOptions];
     updated[index] = { ...updated[index], [field]: value };
     setCustomOptions(updated);
+  };
+
+  // --- Recuadros individuales para las opciones de la lista desplegable ---
+  const handleAddChoice = (index: number) => {
+    const updated = [...customOptions];
+    updated[index] = { ...updated[index], choices: [...updated[index].choices, ""] };
+    setCustomOptions(updated);
+  };
+
+  const handleChoiceChange = (index: number, choiceIdx: number, value: string) => {
+    const updated = [...customOptions];
+    const choices = [...updated[index].choices];
+    choices[choiceIdx] = value;
+    updated[index] = { ...updated[index], choices };
+    setCustomOptions(updated);
+  };
+
+  const handleRemoveChoice = (index: number, choiceIdx: number) => {
+    const updated = [...customOptions];
+    updated[index] = {
+      ...updated[index],
+      choices: updated[index].choices.filter((_, i) => i !== choiceIdx),
+    };
+    setCustomOptions(updated);
+  };
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const urls = files.map((f) => URL.createObjectURL(f));
+    setPreviewImages((prev) => [...prev, ...urls]);
+  };
+
+  const handleRemovePreview = (index: number) => {
+    setPreviewImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -49,26 +93,33 @@ export default function NewProductPage() {
 
     try {
       const formData = new FormData(e.currentTarget);
-      
-      // 🛡️ BLINDAJE 1: Validar el peso de la imagen ANTES de enviarla al servidor
-      const imageFile = formData.get("image") as File;
-      if (imageFile && imageFile.size > 0) {
-        const fileSizeInMB = imageFile.size / (1024 * 1024);
-        if (fileSizeInMB > 5) {
-          toast.error("La imagen es muy pesada (máximo 5MB). Por favor, comprímela.");
+
+      // Validar peso de cada imagen antes de enviarla al servidor
+      const imageFiles = formData
+        .getAll("images")
+        .filter((f): f is File => f instanceof File && f.size > 0);
+      if (imageFiles.length > 8) {
+        toast.error("Máximo 8 imágenes por producto.");
+        setIsLoading(false);
+        return;
+      }
+      for (const f of imageFiles) {
+        if (f.size / (1024 * 1024) > 5) {
+          toast.error(`"${f.name}" pesa más de 5MB. Por favor, comprímela.`);
           setIsLoading(false);
-          return; // Detenemos la ejecución aquí, el servidor ni se entera
+          return;
         }
       }
 
       formData.append("isStockItem", isStockItem.toString());
       formData.append("isCustomCup", isCustomCup.toString());
 
-      const formattedOptions = customOptions.map(opt => ({
+      const formattedOptions = customOptions.map((opt) => ({
         ...opt,
-        choices: (opt.type === "select" && typeof opt.choices === "string")
-          ? opt.choices.split(",").map(c => c.trim()).filter(c => c !== "") 
-          : []
+        choices:
+          opt.type === "select"
+            ? opt.choices.map((c) => c.trim()).filter((c) => c !== "")
+            : [],
       }));
 
       formData.append("customOptions", JSON.stringify(formattedOptions));
@@ -81,8 +132,8 @@ export default function NewProductPage() {
       } else {
         toast.error("Error al guardar: " + result.error);
       }
-    } catch (error: any) {
-      toast.error("Error en el formulario: " + (error.message || "Revisa los campos"));
+    } catch (error) {
+      toast.error("Error en el formulario: " + (error instanceof Error ? error.message : "Revisa los campos"));
     } finally {
       setIsLoading(false);
     }
@@ -100,19 +151,41 @@ export default function NewProductPage() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
 
-        {/* Image Upload Section */}
+        {/* Galería de Imágenes (múltiples) */}
         <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
-          <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Imagen Principal</h3>
+          <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Imágenes del Producto</h3>
+          <p className="text-xs text-gray-400">Puedes subir más de una foto (máximo 8). La primera será la portada.</p>
+
+          {previewImages.length > 0 && (
+            <div className="flex flex-wrap gap-3">
+              {previewImages.map((src, idx) => (
+                <div key={idx} className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-lilaPastel group">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={`Vista previa ${idx + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePreview(idx)}
+                    className="absolute inset-0 bg-black/50 text-white text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    Quitar
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center gap-4">
-            <div className="w-24 h-24 bg-cream rounded-lg flex items-center justify-center border-2 border-dashed border-lilaPastel text-sage">
+            <div className="w-24 h-24 bg-cream rounded-lg flex items-center justify-center border-2 border-dashed border-lilaPastel text-sage shrink-0">
               <ImageIcon size={32} />
             </div>
             <div className="flex-1">
-              <label className="block text-sm font-bold text-berenjena mb-1">Subir Fotografía</label>
+              <label className="block text-sm font-bold text-berenjena mb-1">Subir Fotografía(s)</label>
               <input
                 type="file"
-                name="image"
+                name="images"
                 accept="image/*"
+                multiple
+                onChange={handleImageSelect}
                 className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-sage/20 file:text-sage hover:file:bg-sage/30 cursor-pointer"
               />
               <p className="text-xs text-gray-400 mt-1">Recomendado: PNG o JPG cuadrado (800x800px).</p>
@@ -189,7 +262,7 @@ export default function NewProductPage() {
           </div>
         </div>
 
-        {/* Opciones Dinámicas Actualizadas */}
+        {/* Opciones Dinámicas con Recuadros Individuales */}
         <div className="bg-white p-8 rounded-xl shadow-sm border border-lilaPastel space-y-4">
           <div className="flex justify-between items-center border-b border-lilaPastel pb-2 mb-4">
             <h3 className="text-xl font-bold text-berenjena">Opciones de Personalización</h3>
@@ -216,18 +289,39 @@ export default function NewProductPage() {
                         <select value={opt.type} onChange={(e) => handleOptionChange(index, "type", e.target.value)} className="w-full px-2 py-1 border border-lilaPastel rounded bg-white text-sm">
                           <option value="select">Lista Desplegable</option>
                           <option value="text">Texto Corto</option>
-                          <option value="textarea">Texto Largo (Mensaje)</option>
+                          <option value="textarea">Recuadro de Texto (Mensaje)</option>
                           <option value="checkbox">Casilla (Sí/No)</option>
-                          <option value="image">Subir Imagen</option>
+                          <option value="image">Subir Imagen(es)</option>
                         </select>
                       </div>
                     </div>
 
-                    {/* Mostrar campo de choices solo si es select */}
+                    {/* Recuadros individuales para cada opción de la lista desplegable */}
                     {opt.type === "select" && (
-                      <div>
-                        <label className="block text-xs font-bold text-berenjena mb-1">Opciones (separadas por coma)</label>
-                        <input type="text" value={opt.choices} onChange={(e) => handleOptionChange(index, "choices", e.target.value)} className="w-full px-2 py-1 border border-lilaPastel rounded bg-white text-sm" placeholder="Rosa, Azul, Dorado" required={opt.type === "select"} />
+                      <div className="bg-white p-3 rounded-lg border border-lilaPastel/70">
+                        <label className="block text-xs font-bold text-berenjena mb-2">Opciones de la lista</label>
+                        <div className="space-y-2">
+                          {opt.choices.map((choice, cIdx) => (
+                            <div key={cIdx} className="flex items-center gap-2">
+                              <input
+                                type="text"
+                                value={choice}
+                                onChange={(e) => handleChoiceChange(index, cIdx, e.target.value)}
+                                className="flex-1 px-2 py-1.5 border border-lilaPastel rounded bg-white text-sm"
+                                placeholder={`Opción ${cIdx + 1}`}
+                              />
+                              <button type="button" onClick={() => handleRemoveChoice(index, cIdx)} className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" aria-label="Quitar opción">
+                                <TrashIcon size={16} />
+                              </button>
+                            </div>
+                          ))}
+                          {opt.choices.length === 0 && (
+                            <p className="text-xs text-gray-400 italic">Agrega las opciones con el botón de abajo.</p>
+                          )}
+                          <button type="button" onClick={() => handleAddChoice(index)} className="flex items-center gap-1 text-xs font-bold text-sage hover:text-berenjena transition-colors">
+                            <PlusIcon size={14} weight="bold" /> Agregar recuadro de opción
+                          </button>
+                        </div>
                       </div>
                     )}
 

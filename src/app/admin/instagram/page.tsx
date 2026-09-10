@@ -6,24 +6,42 @@ import { createClient } from "@/lib/supabase/client";
 import { createInstagramPost, toggleInstagramPost, deleteInstagramPost } from "@/actions/instagram";
 import { toast } from "sonner";
 
+interface InstagramPostRow {
+  id: string;
+  post_url: string;
+  image_url: string;
+  order_index: number;
+  is_video: boolean;
+  is_active: boolean;
+}
+
 export default function AdminInstagramPage() {
-  const [posts, setPosts] = useState<any[]>([]);
+  const [posts, setPosts] = useState<InstagramPostRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchPosts = async () => {
-    setIsLoading(true);
+  const loadPosts = async (): Promise<InstagramPostRow[]> => {
     const supabase = createClient();
     const { data } = await supabase
       .from("instagram_feed")
       .select("*")
       .order("order_index", { ascending: true });
 
-    if (data) setPosts(data);
+    return data ?? [];
+  };
+
+  const refreshPosts = async () => {
+    setIsLoading(true);
+    setPosts(await loadPosts());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchPosts = async () => {
+      setIsLoading(true);
+      setPosts(await loadPosts());
+      setIsLoading(false);
+    };
     fetchPosts();
   }, []);
 
@@ -37,7 +55,7 @@ export default function AdminInstagramPage() {
     if (result.success) {
       toast.success("Publicación agregada al feed");
       (e.target as HTMLFormElement).reset();
-      fetchPosts();
+      refreshPosts();
     } else {
       toast.error(result.error || "Error al agregar publicación");
     }
@@ -49,7 +67,7 @@ export default function AdminInstagramPage() {
     const result = await toggleInstagramPost(id, currentStatus);
     if (result.success) {
       toast.success(currentStatus ? "Publicación desactivada" : "Publicación activada");
-      fetchPosts();
+      refreshPosts();
     } else {
       toast.error("Error al actualizar estado");
     }
@@ -60,7 +78,7 @@ export default function AdminInstagramPage() {
     const result = await deleteInstagramPost(id);
     if (result.success) {
       toast.success("Publicación eliminada");
-      fetchPosts();
+      refreshPosts();
     } else {
       toast.error("Error al eliminar publicación");
     }
@@ -73,8 +91,21 @@ export default function AdminInstagramPage() {
           <InstagramLogoIcon size={32} /> Feed de Instagram
         </h2>
         <p className="text-gray-500 mt-2">
-          Administra las fotos y videos que aparecen en la sección "Inspírate con nuestras creaciones".
+          Administra las fotos y videos que aparecen en la sección &ldquo;Inspírate con nuestras creaciones&rdquo;.
         </p>
+      </div>
+
+      {/* Estado del feed automático (Instagram Graph API de Meta) */}
+      <div className="mb-8 p-5 rounded-xl bg-sage/10 flex items-start gap-3">
+        <InstagramLogoIcon size={24} className="text-berenjena shrink-0 mt-0.5" />
+        <div className="text-sm">
+          <p className="font-bold text-berenjena">Feed automático de Instagram activo ✅</p>
+          <p className="text-gray-600 mt-1">
+            La sección del sitio se sincroniza sola con <strong>@momentiva.gdl</strong> mediante la API oficial
+            de Instagram (Meta). Las publicaciones que subes aquí abajo solo se usan como respaldo si el token
+            de Meta expira (se renueva cada ~60 días).
+          </p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

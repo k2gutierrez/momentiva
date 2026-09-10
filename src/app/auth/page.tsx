@@ -1,37 +1,76 @@
 "use client";
 
 import React, { useState } from "react";
-import { EnvelopeIcon, LockIcon, UserIcon, CalendarBlankIcon } from "@phosphor-icons/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { EnvelopeIcon, LockIcon, UserIcon, CalendarBlankIcon, ArrowLeftIcon } from "@phosphor-icons/react";
+import { createClient } from "@/lib/supabase/client";
+import { toast } from "sonner";
 
 export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
-  
+  const [isLoading, setIsLoading] = useState(false);
+
   // Form States
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [birthDate, setBirthDate] = useState("");
 
+  const router = useRouter();
+  const supabase = createClient();
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (isLogin) {
-      console.log("Attempting to log in with:", { email, password });
-      // TODO: Connect to Supabase Login Server Action
-    } else {
-      console.log("Attempting to register:", { email, password, fullName, birthDate });
-      // TODO: Connect to Supabase Register Server Action
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        toast.success("Sesión iniciada correctamente");
+        router.push("/mi-cuenta");
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              full_name: fullName,
+              birth_date: birthDate || null,
+            },
+          },
+        });
+        if (error) throw error;
+        if (data.session) {
+          toast.success("¡Registro exitoso! Bienvenido a Momentiva.");
+          router.push("/mi-cuenta");
+        } else {
+          toast.success("Revisa tu correo para confirmar tu cuenta.");
+        }
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Error de autenticación");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-cream p-4">
-      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden border border-lilaPastel">
-        
-        {/* Header Section */}
+    <main className="min-h-screen flex flex-col items-center justify-center bg-cream p-4">
+      <div className="bg-white w-full max-w-md rounded-2xl shadow-xl overflow-hidden">
+
+        {/* Header Section con Logo */}
         <div className="bg-berenjena p-8 text-center">
-          <h1 className="text-3xl font-bold text-cream mb-2">Momentiva</h1>
-          <p className="text-lilaPastel font-handwriting text-2xl">
+          <Link href="/" className="inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/assets/logo-blanco.png"
+              alt="Momentiva"
+              className="h-16 md:h-20 w-auto mx-auto object-contain"
+            />
+          </Link>
+          <p className="text-lilaPastel font-handwriting text-2xl mt-3">
             cada regalo, un momento inolvidable
           </p>
         </div>
@@ -43,7 +82,7 @@ export default function AuthPage() {
           </h2>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            
+
             {/* Conditional Fields for Registration */}
             {!isLogin && (
               <>
@@ -121,9 +160,10 @@ export default function AuthPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-terracota hover:bg-opacity-90 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-6"
+              disabled={isLoading}
+              className="w-full bg-terracota hover:bg-opacity-90 disabled:opacity-70 text-white font-bold py-3 px-4 rounded-lg transition-colors mt-6"
             >
-              {isLogin ? "Entrar" : "Registrarse"}
+              {isLoading ? "Cargando..." : isLogin ? "Entrar" : "Registrarse"}
             </button>
           </form>
 
@@ -138,7 +178,13 @@ export default function AuthPage() {
                 : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
           </div>
-          
+
+          <div className="mt-4 text-center">
+            <Link href="/" className="inline-flex items-center gap-1 text-xs font-bold text-gray-400 hover:text-terracota transition-colors">
+              <ArrowLeftIcon size={14} /> Volver al inicio
+            </Link>
+          </div>
+
         </div>
       </div>
     </main>

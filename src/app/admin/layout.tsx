@@ -40,8 +40,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       <aside className="w-64 bg-berenjena text-lilaPastel flex flex-col shadow-xl flex-shrink-0">
         <div className="p-8 pb-4 text-center">
           <Link href="/admin" className="block">
-            <h2 className="text-3xl font-bold text-cream">Momentiva</h2>
-            <span className="text-xs uppercase tracking-widest text-sage mt-1 block">Panel de Control</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo-blanco.png" alt="Momentiva" className="h-12 md:h-14 w-auto mx-auto object-contain" />
+            <span className="text-xs uppercase tracking-widest text-sage mt-2 block">Panel de Control</span>
           </Link>
         </div>
 

@@ -6,33 +6,77 @@ import { createClient } from "@/lib/supabase/client";
 import { updateOrderStatus, createOfflineSale } from "@/actions/orders";
 import { toast } from "sonner";
 
+type OrderStatus = 'placed' | 'work_in_progress' | 'finish' | 'delivered';
+
+interface OrderRow {
+  id: string;
+  status: string;
+  total_amount: number;
+  total_cost: number;
+  delivery_date: string;
+  is_offline_sale: boolean;
+  payment_status?: string | null;
+  profiles: { full_name: string; email: string } | null;
+  delivery_address: {
+    customer_name?: string;
+    fullName?: string;
+    phone?: string;
+    deliveryTime?: string;
+    municipality?: string;
+    streetAddress?: string;
+    notes?: string;
+    zip_code?: string;
+  } | null;
+  order_items:
+    | {
+        quantity: number;
+        unit_price: number;
+        selected_options: Record<string, unknown> | null;
+        custom_cup_image_url: string | null;
+        product: { name: string }[] | null;
+      }[]
+    | null;
+}
+
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<OrderRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
-  const fetchOrders = async () => {
-    setIsLoading(true);
+  const loadOrders = async (): Promise<OrderRow[]> => {
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("orders")
-      .select("*, profiles(full_name, email)")
+      .select(
+        "*, profiles(full_name, email), order_items(quantity, unit_price, selected_options, custom_cup_image_url, product:products(name))"
+      )
       .order("created_at", { ascending: false });
 
-    if (data) setOrders(data);
+    return (data as unknown as OrderRow[]) ?? [];
+  };
+
+  const refreshOrders = async () => {
+    setIsLoading(true);
+    setOrders(await loadOrders());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchOrders = async () => {
+      setIsLoading(true);
+      setOrders(await loadOrders());
+      setIsLoading(false);
+    };
     fetchOrders();
   }, []);
 
-  const handleStatusChange = async (orderId: string, newStatus: any) => {
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const result = await updateOrderStatus(orderId, newStatus);
     if (result.success) {
       toast.success("Estado de orden actualizado");
-      fetchOrders();
+      refreshOrders();
     } else {
       toast.error("Error al actualizar el estado");
     }
@@ -49,7 +93,7 @@ export default function AdminOrdersPage() {
       toast.success("Venta externa registrada correctamente");
       setIsModalOpen(false);
       (e.target as HTMLFormElement).reset();
-      fetchOrders();
+      refreshOrders();
     } else {
       toast.error(result.error || "Error al registrar la venta");
     }
@@ -101,9 +145,14 @@ export default function AdminOrdersPage() {
               orders.map((order) => {
                 const margin = order.total_amount - order.total_cost;
                 const marginPercentage = order.total_amount > 0 ? ((margin / order.total_amount) * 100).toFixed(1) : 0;
+                const isExpanded = expandedId === order.id;
 
                 return (
-                  <tr key={order.id} className="hover:bg-cream/30 transition-colors">
+                  <React.Fragment key={order.id}>
+                  <tr
+                    className="hover:bg-cream/30 transition-colors cursor-pointer"
+                    onClick={() => setExpandedId(isExpanded ? null : order.id)}
+                  >
                     <td className="p-4">
                       <div className="font-bold text-berenjena text-sm">#{order.id.slice(0, 8)}</div>
                       {order.is_offline_sale ? (
@@ -111,21 +160,50 @@ export default function AdminOrdersPage() {
                       ) : (
                         <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded font-bold">Web</span>
                       )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedId(isExpanded ? null : order.id);
+                        }}
+                        className="mt-2 block text-xs font-bold text-terracota hover:underline"
+                      >
+                        {isExpanded ? "▲ Ocultar detalle" : "▼ Ver detalle"}
+                      </button>
                     </td>
                     <td className="p-4">
-                      <div className="font-semibold">{order.profiles?.full_name || order.delivery_address?.customer_name || "Cliente General"}</div>
-                      <div className="text-xs text-gray-500">{order.profiles?.email || "Venta mostrador / offline"}</div>
+                      <div className="font-semibold">{order.profiles?.full_name || order.delivery_address?.fullName || order.delivery_address?.customer_name || "Cliente General"}</div>
+                      <div className="text-xs text-gray-500">
+                        {order.profiles?.email ||
+                          order.delivery_address?.phone ||
+                          "Venta mostrador / offline"}
+                      </div>
                     </td>
                     <td className="p-4">
                       <div className="font-bold text-terracota">${order.total_amount.toFixed(2)}</div>
-                      <div className="text-xs text-sage font-semibold">Margen: ${margin.toFixed(2)} ({marginPercentage}%)[cite: 1]</div>
+                      <div className="text-xs text-sage font-semibold">Margen: ${margin.toFixed(2)} ({marginPercentage}%)</div>
+                      <div className="text-xs mt-0.5 font-bold">
+                        {order.payment_status === "paid" ? (
+                          <span className="text-green-600">💳 Pagado</span>
+                        ) : order.payment_status === "rejected" ? (
+                          <span className="text-red-500">❌ Pago rechazado</span>
+                        ) : (
+                          <span className="text-amber-600">⏳ Pago pendiente</span>
+                        )}
+                      </div>
                     </td>
-                    <td className="p-4 text-sm font-medium">{order.delivery_date}</td>
-                    <td className="p-4">
-                      {/* Status Dropdown selector[cite: 1] */}
+                    <td className="p-4 text-sm font-medium">
+                      <div>{order.delivery_date}</div>
+                      {order.delivery_address?.deliveryTime && (
+                        <div className="text-xs text-terracota font-bold mt-0.5">
+                          ⏰ {order.delivery_address.deliveryTime}
+                        </div>
+                      )}
+                    </td>
+                    <td className="p-4" onClick={(e) => e.stopPropagation()}>
+                      {/* Status Dropdown selector */}
                       <select
                         value={order.status}
-                        onChange={(e) => handleStatusChange(order.id, e.target.value)}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border focus:outline-none focus:ring-2 focus:ring-terracota ${
                           order.status === 'placed' ? 'bg-yellow-50 text-yellow-700 border-yellow-200' :
                           order.status === 'work_in_progress' ? 'bg-blue-50 text-blue-700 border-blue-200' :
@@ -140,6 +218,91 @@ export default function AdminOrdersPage() {
                       </select>
                     </td>
                   </tr>
+
+                  {/* Detalle completo del pedido (producción y entrega) */}
+                  {isExpanded && (
+                    <tr key={`detail-${order.id}`}>
+                      <td colSpan={5} className="p-6 bg-cream/40">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Artículos y personalización */}
+                          <div>
+                            <h4 className="font-bold text-berenjena mb-3">🎈 Artículos y personalización</h4>
+                            <div className="space-y-3">
+                              {(order.order_items || []).map((item, idx) => {
+                                const productName =
+                                  Array.isArray(item.product) && item.product.length > 0
+                                    ? item.product[0].name
+                                    : "Producto";
+                                return (
+                                  <div key={idx} className="bg-white rounded-xl p-4 shadow-sm">
+                                    <div className="flex justify-between items-start gap-3">
+                                      <div>
+                                        <p className="font-bold text-berenjena text-sm">{productName}</p>
+                                        <p className="text-xs text-gray-500">Cantidad: {item.quantity} · ${Number(item.unit_price).toFixed(2)} c/u</p>
+                                      </div>
+                                      <span className="font-bold text-terracota text-sm">
+                                        ${(Number(item.unit_price) * item.quantity).toFixed(2)}
+                                      </span>
+                                    </div>
+
+                                    {/* Opciones elegidas */}
+                                    {item.selected_options && Object.keys(item.selected_options).length > 0 && (
+                                      <div className="mt-2 space-y-1">
+                                        {Object.entries(item.selected_options).map(([key, value]) => {
+                                          if (value === undefined || value === false || value === "") return null;
+                                          return (
+                                            <p key={key} className="text-xs text-gray-600">
+                                              <span className="font-bold">{key}:</span>{" "}
+                                              {Array.isArray(value) ? (
+                                                <span className="flex flex-wrap gap-1 mt-1">
+                                                  {value.map((src, i) => (
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img key={i} src={String(src)} alt={`${key} ${i + 1}`} className="w-12 h-12 rounded-lg object-cover bg-cream" />
+                                                  ))}
+                                                </span>
+                                              ) : value === true ? (
+                                                "Sí"
+                                              ) : (
+                                                String(value)
+                                              )}
+                                            </p>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+
+                                    {item.custom_cup_image_url && (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img src={item.custom_cup_image_url} alt="Diseño de taza" className="w-16 h-16 rounded-lg object-cover mt-2" />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              {(!order.order_items || order.order_items.length === 0) && (
+                                <p className="text-xs text-gray-500">Sin artículos registrados.</p>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Datos de entrega */}
+                          <div>
+                            <h4 className="font-bold text-berenjena mb-3">🚚 Datos de entrega</h4>
+                            <div className="bg-white rounded-xl p-4 shadow-sm text-sm space-y-1.5">
+                              <p><span className="font-bold">Cliente:</span> {order.delivery_address?.fullName || order.delivery_address?.customer_name || "—"}</p>
+                              <p><span className="font-bold">Teléfono:</span> {order.delivery_address?.phone || "—"}</p>
+                              <p><span className="font-bold">Dirección:</span> {order.delivery_address?.streetAddress || "—"}</p>
+                              <p><span className="font-bold">C.P.:</span> {order.delivery_address?.zip_code || "—"} · {order.delivery_address?.municipality || ""}</p>
+                              <p><span className="font-bold">Fecha:</span> {order.delivery_date} {order.delivery_address?.deliveryTime ? `· ${order.delivery_address.deliveryTime}` : ""}</p>
+                              {order.delivery_address?.notes && (
+                                <p><span className="font-bold">Notas / Dedicatoria:</span> {order.delivery_address.notes}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 );
               })
             )}

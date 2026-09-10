@@ -6,24 +6,45 @@ import { createClient } from "@/lib/supabase/client";
 import { createCoupon, toggleCouponStatus, deleteCoupon } from "@/actions/coupons";
 import { toast } from "sonner";
 
+interface CouponRow {
+  id: string;
+  code: string;
+  discount_type: string;
+  discount_value: number;
+  min_spend: number | null;
+  max_uses: number | null;
+  expires_at: string | null;
+  is_active: boolean;
+  used_count: number | null;
+}
+
 export default function AdminCouponsPage() {
-  const [coupons, setCoupons] = useState<any[]>([]);
+  const [coupons, setCoupons] = useState<CouponRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchCoupons = async () => {
-    setIsLoading(true);
+  const loadCoupons = async (): Promise<CouponRow[]> => {
     const supabase = createClient();
     const { data } = await supabase
       .from("coupons")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setCoupons(data);
+    return data ?? [];
+  };
+
+  const refreshCoupons = async () => {
+    setIsLoading(true);
+    setCoupons(await loadCoupons());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchCoupons = async () => {
+      setIsLoading(true);
+      setCoupons(await loadCoupons());
+      setIsLoading(false);
+    };
     fetchCoupons();
   }, []);
 
@@ -37,7 +58,7 @@ export default function AdminCouponsPage() {
     if (result.success) {
       toast.success("Cupón creado exitosamente");
       (e.target as HTMLFormElement).reset();
-      fetchCoupons();
+      refreshCoupons();
     } else {
       toast.error(result.error || "Error al crear el cupón");
     }
@@ -49,7 +70,7 @@ export default function AdminCouponsPage() {
     const result = await toggleCouponStatus(id, currentStatus);
     if (result.success) {
       toast.success(currentStatus ? "Cupón desactivado" : "Cupón activado");
-      fetchCoupons();
+      refreshCoupons();
     } else {
       toast.error("Error al cambiar estado");
     }
@@ -61,7 +82,7 @@ export default function AdminCouponsPage() {
     const result = await deleteCoupon(id);
     if (result.success) {
       toast.success("Cupón eliminado");
-      fetchCoupons();
+      refreshCoupons();
     } else {
       toast.error("Error al eliminar el cupón");
     }

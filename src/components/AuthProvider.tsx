@@ -20,7 +20,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (user) {
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("full_name, role")
+          .select("full_name, role, phone, birth_date, address")
           .eq("id", user.id)
           .single();
 
@@ -46,7 +46,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       if (currentUser) {
         const { data: profile, error } = await supabase
           .from("profiles")
-          .select("full_name, role")
+          .select("full_name, role, phone, birth_date, address")
           .eq("id", currentUser.id)
           .single();
 

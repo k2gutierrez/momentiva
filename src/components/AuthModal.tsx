@@ -84,8 +84,8 @@ export default function AuthModal() {
           setIsOpen(false);
         }
       }
-    } catch (error: any) {
-      toast.error(error.message || "Error de autenticación");
+    } catch (error: unknown) {
+      toast.error(error instanceof Error ? error.message : "Error de autenticación");
     } finally {
       setIsLoading(false);
     }
@@ -93,7 +93,7 @@ export default function AuthModal() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-berenjena/50 backdrop-blur-sm p-4 animate-fade-in">
-      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden border border-lilaPastel relative animate-fade-in-up">
+      <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden relative animate-fade-in-up">
         
         {/* Close Button */}
         <button 
@@ -216,7 +216,7 @@ export default function AuthModal() {
         </form>
 
         {/* Modal Footer Toggle */}
-        <div className="bg-cream/50 p-4 border-t border-lilaPastel text-center text-sm">
+        <div className="bg-cream/50 p-4 text-center text-sm">
           {isForgotPassword ? (
             <button 
               type="button"

@@ -19,26 +19,34 @@ export async function createProduct(formData: FormData) {
     const isCustomCup = formData.get("isCustomCup") === "true";
     const customOptions = JSON.parse(formData.get("customOptions") as string || "[]");
     
-    const imageFile = formData.get("image") as File;
-    let imageUrl = "";
+    const imageFiles = formData
+      .getAll("images")
+      .filter((f): f is File => f instanceof File && f.size > 0);
 
-    // VALIDACIÓN ULTRA-SEGURA PARA LA IMAGEN
-    if (imageFile && typeof imageFile === 'object' && imageFile.size > 0 && imageFile.name) {
-      const fileExt = imageFile.name.split('.').pop();
+    if (imageFiles.length > 8) {
+      throw new Error("Máximo 8 imágenes por producto");
+    }
+
+    const images: string[] = [];
+    for (const imageFile of imageFiles) {
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error(`"${imageFile.name}" pesa más de 5MB. Por favor, comprímela.`);
+      }
+      const fileExt = imageFile.name.split(".").pop() || "jpg";
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `public/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('product-images')
+        .from("product-images")
         .upload(filePath, imageFile);
 
       if (uploadError) throw new Error(`Error uploading image: ${uploadError.message}`);
 
       const { data: publicUrlData } = supabase.storage
-        .from('product-images')
+        .from("product-images")
         .getPublicUrl(filePath);
-        
-      imageUrl = publicUrlData.publicUrl;
+
+      images.push(publicUrlData.publicUrl);
     }
 
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
@@ -55,7 +63,7 @@ export async function createProduct(formData: FormData) {
       anticipation_days: anticipationDays,
       is_custom_cup: isCustomCup,
       custom_options: customOptions,
-      images: imageUrl ? [imageUrl] : [],
+      images,
     });
 
     if (insertError) throw new Error(`Error saving product: ${insertError.message}`);
@@ -65,10 +73,10 @@ export async function createProduct(formData: FormData) {
     
     return { success: true };
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     // AHORA SÍ ATRAPARÁ CUALQUIER FALLA
     console.error("Error real capturado:", error);
-    return { success: false, error: error.message || "Error desconocido en el servidor" };
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido en el servidor" };
   }
 }
 
@@ -89,30 +97,40 @@ export async function updateProduct(id: string, formData: FormData) {
     const isCustomCup = formData.get("isCustomCup") === "true";
     const customOptions = JSON.parse(formData.get("customOptions") as string || "[]");
     
-    const imageFile = formData.get("image") as File;
-    let imageUrl = null;
+    // Imágenes existentes (para conservarlas) + nuevas a subir
+    const existingImages: string[] = JSON.parse(
+      (formData.get("existingImages") as string) || "[]"
+    );
+    const imageFiles = formData
+      .getAll("images")
+      .filter((f): f is File => f instanceof File && f.size > 0);
 
-    // 🛡️ BLINDAJE 2: Validación súper estricta de que sí es un archivo real
-    if (imageFile && typeof imageFile === 'object' && imageFile.size > 0 && imageFile.name) {
-      const fileExt = imageFile.name.split('.').pop();
+    const newImages: string[] = [];
+    for (const imageFile of imageFiles) {
+      if (imageFile.size > 5 * 1024 * 1024) {
+        throw new Error(`"${imageFile.name}" pesa más de 5MB. Por favor, comprímela.`);
+      }
+      const fileExt = imageFile.name.split(".").pop() || "jpg";
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `public/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
-        .from('product-images')
+        .from("product-images")
         .upload(filePath, imageFile);
 
       if (uploadError) throw new Error(`Error subiendo imagen: ${uploadError.message}`);
 
       const { data: publicUrlData } = supabase.storage
-        .from('product-images')
+        .from("product-images")
         .getPublicUrl(filePath);
-        
-      imageUrl = publicUrlData.publicUrl;
+
+      newImages.push(publicUrlData.publicUrl);
     }
 
+    const mergedImages = [...existingImages, ...newImages];
+
     // Armamos el objeto con lo que se va a actualizar
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       name,
       category_id: categoryId || null,
       description,
@@ -125,9 +143,9 @@ export async function updateProduct(id: string, formData: FormData) {
       custom_options: customOptions,
     };
 
-    // Si se subió imagen nueva con éxito, actualizamos el arreglo
-    if (imageUrl) {
-      payload.images = [imageUrl];
+    // Si hay imágenes (existentes + nuevas), actualizamos el arreglo
+    if (mergedImages.length > 0) {
+      payload.images = mergedImages;
     }
 
     const { error: updateError } = await supabase
@@ -143,10 +161,10 @@ export async function updateProduct(id: string, formData: FormData) {
     
     return { success: true };
     
-  } catch (error: any) {
+  } catch (error: unknown) {
     // 🛡️ BLINDAJE 3: Ahora sí atraparemos y mostraremos cualquier error de Servidor
     console.error("Error real capturado en updateProduct:", error);
-    return { success: false, error: error.message || "Falla técnica en el servidor al actualizar" };
+    return { success: false, error: error instanceof Error ? error.message : "Falla técnica en el servidor al actualizar" };
   }
 }
 

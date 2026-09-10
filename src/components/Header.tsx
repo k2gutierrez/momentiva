@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import { authModalOpenAtom, userAtom, userProfileAtom } from "@/store/authStore";
-import { ListIcon, XIcon, CaretDownIcon, ShieldCheckIcon, SignOutIcon } from "@phosphor-icons/react/dist/ssr";
+import { ListIcon, XIcon, CaretDownIcon, ShieldCheckIcon, SignOutIcon, ShoppingCartIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
@@ -27,7 +27,7 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-white sticky top-0 z-50 shadow-sm border-b border-lilaPastel/50">
+    <header className="bg-white sticky top-0 z-50 shadow-sm">
       
       {/* 1. TOP ROW: Logotipo */}
       <div className="flex justify-between lg:justify-center items-center px-6 py-4 lg:py-6">
@@ -42,11 +42,25 @@ export default function Header() {
           <img src="/logo.png" alt="Momentiva" className="h-10 md:h-16 w-auto object-contain" />
         </Link>
 
+        {/* Ícono de carrito arriba a la derecha con preview del número de productos */}
+        <button
+          onClick={() => setCartOpen(true)}
+          className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 text-berenjena p-2 hover:text-terracota transition-colors focus:outline-none"
+          aria-label="Abrir carrito de compras"
+        >
+          <ShoppingCartIcon size={28} weight="bold" />
+          {cartCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 bg-terracota text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center shadow">
+              {cartCount}
+            </span>
+          )}
+        </button>
+
         <div className="w-10 lg:hidden"></div>
       </div>
 
       {/* 2. BOTTOM ROW: Barra de Navegación Lila (Desktop) */}
-      <div className="hidden lg:block bg-[#EBE0EC] border-y border-lilaPastel/30">
+      <div className="hidden lg:block bg-[#EBE0EC]">
         <nav className="max-w-7xl mx-auto flex justify-between items-center px-8 py-4">
           
           {/* INICIO */}

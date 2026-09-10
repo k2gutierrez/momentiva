@@ -49,7 +49,7 @@ export default function CartDrawer() {
       <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col animate-fade-in-up">
         
         {/* Cabecera del Cajón */}
-        <div className="flex items-center justify-between p-6 border-b border-lilaPastel bg-[#F5EFF6]">
+        <div className="flex items-center justify-between p-6 bg-[#F5EFF6]">
           <h2 className="text-2xl font-bold text-[#3A243F]">Tu Carrito</h2>
           <button 
             onClick={handleClose} 
@@ -71,12 +71,12 @@ export default function CartDrawer() {
             </div>
           ) : (
             cartItems.map((item) => (
-              <div key={item.cartItemId} className="flex gap-4 border border-lilaPastel p-4 rounded-2xl bg-white shadow-sm">
+              <div key={item.cartItemId} className="flex gap-4 p-4 rounded-2xl bg-white shadow-sm">
                 
                 <img 
                   src={item.image} 
                   alt={item.name} 
-                  className="w-20 h-20 object-cover rounded-xl border border-cream" 
+                  className="w-20 h-20 object-cover rounded-xl" 
                 />
                 
                 <div className="flex-1 flex flex-col justify-between">
@@ -96,10 +96,22 @@ export default function CartDrawer() {
                   <div className="text-terracota font-bold text-sm mt-1">
                     ${item.unitPrice.toFixed(2)} MXN
                   </div>
+
+                  {/* Fecha y horario de entrega elegidos */}
+                  {item.deliveryDate && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      📅{" "}
+                      {new Date(`${item.deliveryDate}T00:00:00`).toLocaleDateString("es-MX", {
+                        day: "numeric",
+                        month: "short",
+                      })}
+                      {item.deliveryTime ? ` · ${item.deliveryTime}` : ""}
+                    </p>
+                  )}
                   
                   {/* Controles de Cantidad */}
                   <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center border border-lilaPastel rounded-lg overflow-hidden bg-[#F5EFF6]">
+                    <div className="flex items-center rounded-lg overflow-hidden bg-[#F5EFF6]">
                       <button onClick={() => updateQuantity(item.cartItemId, -1)} className="px-3 py-1.5 hover:bg-lilaPastel/50 transition-colors text-gray-600">
                         <MinusIcon size={12} weight="bold" />
                       </button>
@@ -117,7 +129,7 @@ export default function CartDrawer() {
 
         {/* Pie del Cajón (Total y Botón de Pago) */}
         {cartItems.length > 0 && (
-          <div className="border-t border-lilaPastel p-6 bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
+          <div className="p-6 bg-white shadow-[0_-10px_40px_-15px_rgba(0,0,0,0.1)]">
             <div className="flex justify-between items-end mb-2">
               <span className="font-bold text-gray-600">Subtotal</span>
               <span className="font-bold text-terracota text-2xl leading-none">

@@ -7,23 +7,40 @@ import { createClient } from "@/lib/supabase/client";
 import { toggleProductStatus } from "@/actions/products";
 import { toast } from "sonner";
 
+interface ProductRow {
+  id: string;
+  name: string;
+  price: number;
+  is_active: boolean;
+  is_in_stock_item: boolean;
+  stock_quantity: number;
+  images: string[] | null;
+}
+
 export default function AdminProductsPage() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch live data from Supabase
-  const fetchProducts = async () => {
+  const loadProducts = async (): Promise<ProductRow[]> => {
     const supabase = createClient();
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("products")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (data) setProducts(data);
+    return data ?? [];
+  };
+
+  const refreshProducts = async () => {
+    setProducts(await loadProducts());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchProducts = async () => {
+      setProducts(await loadProducts());
+      setIsLoading(false);
+    };
     fetchProducts();
   }, []);
 
@@ -31,7 +48,7 @@ export default function AdminProductsPage() {
     const result = await toggleProductStatus(id, currentStatus);
     if (result.success) {
       toast.success(currentStatus ? "Producto deshabilitado" : "Producto habilitado");
-      fetchProducts(); // Refresh the table
+      refreshProducts(); // Refresh the table
     } else {
       toast.error("Error al actualizar el estado");
     }

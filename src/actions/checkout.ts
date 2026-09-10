@@ -1,11 +1,25 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
+import type { CartItem } from "@/store/cartStore";
+import { createPaymentPreference, getPaymentInfo } from "@/lib/mercadopago";
+import { randomUUID } from "node:crypto";
+
+export interface CheckoutDeliveryAddress {
+  fullName: string;
+  phone?: string;
+  streetAddress?: string;
+  notes?: string;
+  municipality?: string;
+  zoneName?: string;
+  deliveryTime?: string;
+}
 
 export async function processCheckoutOrder(orderData: {
   deliveryZipCode: string;
-  deliveryAddress: any;
+  deliveryAddress: CheckoutDeliveryAddress;
   deliveryDate: string;
   couponCode?: string;
   discountAmount: number;
@@ -13,47 +27,150 @@ export async function processCheckoutOrder(orderData: {
   subtotal: number;
   totalAmount: number;
   totalCost: number;
-  cartItems: any[];
+  cartItems: CartItem[];
+  origin: string;
 }) {
   const supabase = await createClient();
 
   try {
     const { data: { user } } = await supabase.auth.getUser();
 
-    // 1. Insert order record
-    const { data: order, error: orderError } = await supabase
-      .from("orders")
-      .insert({
-        user_id: user?.id || null,
-        status: "placed",
-        total_amount: orderData.totalAmount,
-        total_cost: orderData.totalCost,
-        delivery_fee: orderData.deliveryFee,
-        delivery_date: orderData.deliveryDate,
-        payment_method: "stripe", // Default gateway placeholder
-        payment_status: "paid",
-        delivery_address: {
-          ...orderData.deliveryAddress,
-          zip_code: orderData.deliveryZipCode,
-        },
-        coupon_code: orderData.couponCode || null,
-        discount_amount: orderData.discountAmount,
-        is_offline_sale: false,
-      })
-      .select()
-      .single();
+    // Si hay cupón aplicado, buscamos su id en la tabla discounts
+    let discountId: string | null = null;
+    if (orderData.couponCode) {
+      const { data: discount } = await supabase
+        .from("discounts")
+        .select("id")
+        .eq("code", orderData.couponCode.toUpperCase().trim())
+        .eq("is_active", true)
+        .maybeSingle();
+      discountId = discount?.id || null;
+    }
+
+    // 1. Id del pedido generado por el servidor (así no necesitamos leer la fila creada,
+    //    lo que es compatible con RLS para visitantes)
+    const orderId = randomUUID();
+
+    // 2. Crear la preferencia de Mercado Pago ANTES de insertar (sin lecturas de BD)
+    let preferenceId: string | null = null;
+    let initPoint: string | null = null;
+    let paymentWarning: string | null = null;
+
+    try {
+      // Items del pago = productos + envío - descuento (el total debe coincidir con el checkout)
+      const paymentItems = orderData.cartItems.map((item) => ({
+        title: item.name.slice(0, 255),
+        quantity: item.quantity,
+        unit_price: Number(item.unitPrice),
+      }));
+
+      if (orderData.deliveryFee > 0) {
+        paymentItems.push({
+          title: "Costo de envío",
+          quantity: 1,
+          unit_price: Number(orderData.deliveryFee.toFixed(2)),
+        });
+      }
+
+      if (orderData.discountAmount > 0) {
+        paymentItems.push({
+          title: "Descuento aplicado",
+          quantity: 1,
+          unit_price: -Number(orderData.discountAmount.toFixed(2)),
+        });
+      }
+
+      const pref = await createPaymentPreference({
+        orderId,
+        items: paymentItems,
+        payerName: orderData.deliveryAddress.fullName,
+        origin: orderData.origin,
+      });
+      preferenceId = pref.preferenceId;
+      initPoint = pref.initPoint;
+    } catch (prefError) {
+      paymentWarning =
+        prefError instanceof Error
+          ? prefError.message
+          : "No se pudo iniciar el pago. Contáctanos por WhatsApp.";
+    }
+
+    // 3. Insertar el pedido (sin .select() → funciona para visitantes con RLS)
+    const insertPayload: Record<string, unknown> = {
+      id: orderId,
+      client_id: user?.id || null,
+      status: "placed",
+      total_amount: orderData.totalAmount,
+      total_cost: orderData.totalCost,
+      delivery_fee: orderData.deliveryFee,
+      delivery_date: orderData.deliveryDate,
+      payment_method: "mercado_pago",
+      payment_status: "pending",
+      delivery_address: {
+        ...orderData.deliveryAddress,
+        zip_code: orderData.deliveryZipCode,
+      },
+      discount_id: discountId,
+      is_offline_sale: false,
+    };
+    if (preferenceId) {
+      insertPayload.payment_reference = preferenceId;
+    }
+
+    let orderError: { message: string; code?: string } | null = null;
+
+    if (preferenceId) {
+      const first = await supabase.from("orders").insert(insertPayload);
+      if (first.error && first.error.code === "42703" && insertPayload.payment_reference) {
+        // La columna payment_reference no existe aún: reintentamos sin ella
+        delete insertPayload.payment_reference;
+        const retry = await supabase.from("orders").insert(insertPayload);
+        orderError = retry.error;
+      } else {
+        orderError = first.error;
+      }
+    } else {
+      const res = await supabase.from("orders").insert(insertPayload);
+      orderError = res.error;
+    }
 
     if (orderError) throw new Error(orderError.message);
 
-    // 2. Insert order items
-    const itemsToInsert = orderData.cartItems.map((item) => ({
-      order_id: order.id,
-      product_id: item.productId,
-      quantity: item.quantity,
-      unit_price: item.unitPrice,
-      selected_options: item.selectedOptions || {},
-      custom_cup_image_url: item.customCupImage || null,
-    }));
+    // 4. Costos reales por producto (raw_cost) para unit_cost y el costo total del pedido.
+    //    Se leen con service role (dato interno, invisible para el cliente).
+    const productIds = orderData.cartItems.map((item) => item.productId);
+    const adminCostClient = createAdminClient() ?? supabase;
+    const { data: costRows, error: costError } = await adminCostClient
+      .from("products")
+      .select("id, raw_cost")
+      .in("id", productIds);
+
+    if (costError) {
+      console.warn("No se pudieron leer los costos de productos:", costError.message);
+    }
+
+    const costById = new Map<string, number>();
+    (costRows || []).forEach((row) => {
+      costById.set(String(row.id), Number(row.raw_cost) || 0);
+    });
+
+    let computedTotalCost = 0;
+    const itemsToInsert = orderData.cartItems.map((item) => {
+      // Si el producto existe en la BD usamos su raw_cost; si no (ej. taza personalizada), estimamos 40%
+      const unitCost = costById.has(item.productId)
+        ? costById.get(item.productId)!
+        : Math.round(item.unitPrice * 0.4 * 100) / 100;
+      computedTotalCost += unitCost * item.quantity;
+      return {
+        order_id: orderId,
+        product_id: item.productId,
+        quantity: item.quantity,
+        unit_price: item.unitPrice,
+        unit_cost: unitCost,
+        selected_options: item.selectedOptions || {},
+        custom_cup_image_url: item.customCupImage || null,
+      };
+    });
 
     const { error: itemsError } = await supabase
       .from("order_items")
@@ -61,7 +178,22 @@ export async function processCheckoutOrder(orderData: {
 
     if (itemsError) throw new Error(itemsError.message);
 
-    // 3. Send Pushover Notification to Owners
+    // 5. Actualizar el costo total del pedido con el cálculo real del servidor
+    //    (usa service role si está configurada, porque los invitados no tienen permiso de UPDATE)
+    if (computedTotalCost > 0) {
+      const admin = createAdminClient();
+      const costClient = admin ?? supabase;
+      const { error: costUpdateError } = await costClient
+        .from("orders")
+        .update({ total_cost: computedTotalCost })
+        .eq("id", orderId);
+
+      if (costUpdateError) {
+        console.warn("No se pudo actualizar total_cost:", costUpdateError.message);
+      }
+    }
+
+    // 6. Notificación Pushover a las dueñas
     const pushoverUserKey = process.env.PUSHOVER_USER_KEY;
     const pushoverAppToken = process.env.PUSHOVER_APP_TOKEN;
 
@@ -83,18 +215,78 @@ export async function processCheckoutOrder(orderData: {
     }
 
     revalidatePath("/admin/orders");
-    return { success: true, orderId: order.id };
-  } catch (error: any) {
-    return { success: false, error: error.message };
+    return {
+      success: true,
+      orderId,
+      initPoint,
+      warning: paymentWarning ?? undefined,
+    };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
 }
 
-// Action to validate dynamic coupon code
+// Confirmar pago de Mercado Pago: actualiza el pedido según el estado recibido.
+// Usa service role si está configurada (para pedidos de invitados); si no, la sesión actual.
+export async function confirmMercadoPagoPayment(paymentId: string) {
+  try {
+    const info = await getPaymentInfo(paymentId);
+    if (!info) throw new Error("No se pudo consultar el pago en Mercado Pago.");
+
+    // Registro de diagnóstico: motivo exacto del rechazo (visible en los logs del servidor)
+    console.log(
+      "[MercadoPago] pago recibido:",
+      JSON.stringify({
+        paymentId,
+        status: info.status,
+        statusDetail: info.statusDetail,
+        paymentMethodId: info.paymentMethodId,
+        externalReference: info.externalReference,
+      })
+    );
+
+    if (!info.externalReference) {
+      return { success: true, status: info.status, orderId: null };
+    }
+
+    // status: approved | pending | in_process | rejected | authorized
+    const paymentStatus =
+      info.status === "approved"
+        ? "paid"
+        : info.status === "rejected"
+        ? "rejected"
+        : "pending";
+
+    const orderStatus =
+      info.status === "approved" ? "work_in_progress" : "placed";
+
+    const admin = createAdminClient();
+    const supabase = admin ?? (await createClient());
+
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        payment_status: paymentStatus,
+        status: orderStatus,
+      })
+      .eq("id", info.externalReference);
+
+    if (error) throw new Error(error.message);
+
+    revalidatePath("/admin/orders");
+    revalidatePath("/mi-cuenta");
+    return { success: true, status: info.status, orderId: info.externalReference };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
+// Action to validate dynamic coupon code (tabla real: discounts)
 export async function validateCoupon(code: string, subtotal: number) {
   const supabase = await createClient();
 
   const { data: coupon, error } = await supabase
-    .from("coupons")
+    .from("discounts")
     .select("*")
     .eq("code", code.toUpperCase().trim())
     .eq("is_active", true)
@@ -104,19 +296,19 @@ export async function validateCoupon(code: string, subtotal: number) {
     return { valid: false, error: "Código de cupón inválido o expirado" };
   }
 
-  if (coupon.min_spend && subtotal < coupon.min_spend) {
-    return { valid: false, error: `Se requiere una compra mínima de $${coupon.min_spend.toFixed(2)}` };
-  }
-
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
     return { valid: false, error: "Este cupón ha expirado" };
   }
 
+  if (coupon.usage_limit && coupon.used_count && coupon.used_count >= coupon.usage_limit) {
+    return { valid: false, error: "Este cupón ya alcanzó su límite de usos" };
+  }
+
   let discount = 0;
-  if (coupon.discount_type === "percentage") {
-    discount = (subtotal * coupon.discount_value) / 100;
+  if (coupon.type === "percentage") {
+    discount = (subtotal * Number(coupon.value)) / 100;
   } else {
-    discount = coupon.discount_value;
+    discount = Number(coupon.value);
   }
 
   return { valid: true, discount: Math.min(discount, subtotal), code: coupon.code };

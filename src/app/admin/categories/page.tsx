@@ -6,27 +6,43 @@ import { createClient } from "@/lib/supabase/client";
 import { createCategory, deleteCategory, updateCategory } from "@/actions/categories";
 import { toast } from "sonner";
 
+interface CategoryRow {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+}
+
 export default function AdminCategoriesPage() {
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<CategoryRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Estado para la modal de edición
-  const [editingCategory, setEditingCategory] = useState<any | null>(null);
+  const [editingCategory, setEditingCategory] = useState<CategoryRow | null>(null);
 
-  const fetchCategories = async () => {
-    setIsLoading(true);
+  const loadCategories = async (): Promise<CategoryRow[]> => {
     const supabase = createClient();
     const { data } = await supabase
       .from("categories")
       .select("*")
       .order("name", { ascending: true });
 
-    if (data) setCategories(data);
+    return data ?? [];
+  };
+
+  const refreshCategories = async () => {
+    setIsLoading(true);
+    setCategories(await loadCategories());
     setIsLoading(false);
   };
 
   useEffect(() => {
+    const fetchCategories = async () => {
+      setIsLoading(true);
+      setCategories(await loadCategories());
+      setIsLoading(false);
+    };
     fetchCategories();
   }, []);
 
@@ -40,7 +56,7 @@ export default function AdminCategoriesPage() {
     if (result.success) {
       toast.success("Categoría creada exitosamente");
       (e.target as HTMLFormElement).reset();
-      fetchCategories();
+      refreshCategories();
     } else {
       toast.error(result.error || "Error al crear categoría");
     }
@@ -59,7 +75,7 @@ export default function AdminCategoriesPage() {
     if (result.success) {
       toast.success("Categoría actualizada correctamente");
       setEditingCategory(null);
-      fetchCategories();
+      refreshCategories();
     } else {
       toast.error(result.error || "Error al actualizar categoría");
     }
@@ -73,7 +89,7 @@ export default function AdminCategoriesPage() {
     const result = await deleteCategory(id);
     if (result.success) {
       toast.success("Categoría eliminada");
-      fetchCategories();
+      refreshCategories();
     } else {
       toast.error("Error al eliminar la categoría");
     }
