@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { Plus, MagnifyingGlass, PencilSimple, Power, Package } from "@phosphor-icons/react/dist/ssr";
+import { useRouter } from "next/navigation";
+import { Plus, MagnifyingGlass, PencilSimple, Power, Package, Copy } from "@phosphor-icons/react/dist/ssr";
 import { createClient } from "@/lib/supabase/client";
-import { toggleProductStatus } from "@/actions/products";
+import { toggleProductStatus, duplicateProduct } from "@/actions/products";
 import { toast } from "sonner";
 
 interface ProductRow {
@@ -20,6 +21,17 @@ interface ProductRow {
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
+
+  const handleDuplicate = async (id: string) => {
+    const result = await duplicateProduct(id);
+    if (result.success && result.newId) {
+      toast.success("Producto duplicado. Editando la copia...");
+      router.push(`/admin/products/edit/${result.newId}`);
+    } else {
+      toast.error(result.error || "No se pudo duplicar el producto");
+    }
+  };
 
   const loadProducts = async (): Promise<ProductRow[]> => {
     const supabase = createClient();
@@ -63,6 +75,21 @@ export default function AdminProductsPage() {
         </Link>
       </div>
 
+      {/* Ayuda: dónde se muestran los complementos */}
+      <div className="mb-6 p-4 rounded-xl bg-lilaPastel/25 text-sm text-gray-700">
+        <p className="font-bold text-berenjena mb-1">💡 ¿Dónde agrego los complementos?</p>
+        <p>
+          Crea primero la categoría <strong>&ldquo;Complementa tu regalo&rdquo;</strong> en{" "}
+          <Link href="/admin/categories" className="font-bold text-terracota hover:underline">Categorías</Link>{" "}
+          (slug: <span className="font-mono">complementa-tu-regalo</span>) y luego crea aquí los productos
+          (Suculentas, Cervezas, Pastel, Copa de postre, Charcutería…) asignándolos a esa categoría.
+          Aparecerán automáticamente en la sección &ldquo;Complementa tu regalo&rdquo; de cada producto.
+        </p>
+        <p className="mt-1">
+          Usa el botón <strong>Duplicar</strong> (⧉) para copiar un producto existente y editar solo los detalles.
+        </p>
+      </div>
+
       <div className="bg-white rounded-xl border border-lilaPastel overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
@@ -100,6 +127,13 @@ export default function AdminProductsPage() {
                   <Link href={`/admin/products/edit/${product.id}`} className="p-2 text-sage hover:bg-sage/10 rounded-lg transition-colors" title="Editar">
                     <PencilSimple size={20} />
                   </Link>
+                  <button
+                    onClick={() => handleDuplicate(product.id)}
+                    className="p-2 text-berenjena hover:bg-cream rounded-lg transition-colors"
+                    title="Duplicar producto (crea una copia inactiva para editar)"
+                  >
+                    <Copy size={20} />
+                  </button>
                   <button 
                     onClick={() => handleToggleStatus(product.id, product.is_active)}
                     className={`p-2 rounded-lg transition-colors ${product.is_active ? 'text-red-400 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`} 

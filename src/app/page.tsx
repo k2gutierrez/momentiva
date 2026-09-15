@@ -37,6 +37,12 @@ export default async function Home() {
   const graphPosts = await fetchInstagramFeed(12);
   const instaFeed = graphPosts.length > 0 ? graphPosts : (instaPosts || []);
 
+  // 4. Categorías para el menú "¿Qué quieres celebrar?"
+  const { data: categories } = await supabase
+    .from("categories")
+    .select("id, name, slug")
+    .order("name", { ascending: true });
+
   return (
     <main className="bg-white min-h-screen">
       <AuthModal />
@@ -81,6 +87,32 @@ export default async function Home() {
         </div>
       </section>
 
+      {/* Menú de categorías (igual que en Tienda) */}
+      <section className="bg-white pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-8">
+          <h3 className="text-2xl md:text-3xl font-bold text-berenjena text-center mb-6">
+            ¿Qué quieres celebrar?
+          </h3>
+          <div className="flex overflow-x-auto hide-scrollbar gap-3 pb-2 snap-x justify-start md:justify-center">
+            <Link
+              href="/tienda"
+              className="whitespace-nowrap snap-center px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm bg-[#3A243F] text-white"
+            >
+              Todos
+            </Link>
+            {(categories || []).map((cat) => (
+              <Link
+                key={cat.id}
+                href={`/tienda?categoria=${cat.slug}`}
+                className="whitespace-nowrap snap-center px-6 py-2.5 rounded-full text-sm font-bold transition-all shadow-sm bg-[#EBE0EC] text-[#3A243F] hover:bg-lilaPastel transition-colors"
+              >
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Catalog Grid */}
       <section id="catalog" className="bg-cream/60 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
@@ -89,7 +121,7 @@ export default async function Home() {
         </div>
 
         {products && products.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
             {products.map((product) => (
               <Link
                 href={`/product/${product.slug}`}

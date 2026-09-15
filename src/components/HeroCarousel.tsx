@@ -59,7 +59,7 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
               </a>
               <a
                 href="/tienda?categoria=personalizados"
-                className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border border-white/30 font-bold px-6 sm:px-8 py-3 sm:py-4 rounded-full transition-colors text-center text-sm sm:text-base"
+                className="bg-[#3B2142] hover:bg-[#2A1730] text-white font-bold px-6 sm:px-8 py-3 sm:py-4 rounded-full shadow-lg transition-transform hover:scale-105 text-center text-sm sm:text-base"
               >
                 Personalizar
               </a>
@@ -132,7 +132,7 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
                   </a>
                   <a
                     href="/tienda?categoria=personalizados"
-                    className="bg-white/10 hover:bg-white/20 backdrop-blur-md text-cream border border-lilaPastel/30 font-bold px-8 py-4 rounded-full transition-colors"
+                    className="bg-[#3B2142] hover:bg-[#2A1730] text-white font-bold px-8 py-4 rounded-full shadow-xl transition-transform hover:scale-105"
                   >
                     Personalizar
                   </a>

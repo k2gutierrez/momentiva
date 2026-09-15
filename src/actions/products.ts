@@ -185,3 +185,53 @@ export async function toggleProductStatus(id: string, currentStatus: boolean) {
   revalidatePath("/tienda");
   return { success: true };
 }
+
+// Duplicar un producto (copia inactiva) para editar solo los detalles
+export async function duplicateProduct(id: string) {
+  const supabase = await createClient();
+
+  try {
+    const { data: original, error } = await supabase
+      .from("products")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !original) throw new Error("Producto no encontrado");
+
+    const baseName = String(original.name || "Producto").replace(/ \(copia( \d+)?\)$/i, "");
+    const slugBase = baseName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
+
+    const { data: created, error: insertError } = await supabase
+      .from("products")
+      .insert({
+        name: `${baseName} (copia)`,
+        slug: `${slugBase || "producto"}-${Date.now()}`,
+        category_id: original.category_id,
+        description: original.description,
+        price: original.price,
+        raw_cost: original.raw_cost,
+        images: original.images,
+        custom_options: original.custom_options,
+        is_in_stock_item: original.is_in_stock_item,
+        stock_quantity: original.stock_quantity,
+        anticipation_days: original.anticipation_days,
+        is_custom_cup: original.is_custom_cup,
+        is_active: false, // la copia nace inactiva hasta que la revisen
+      })
+      .select("id")
+      .single();
+
+    if (insertError) throw new Error(insertError.message);
+
+    revalidatePath("/admin/products");
+    return { success: true, newId: created?.id as string };
+  } catch (error: unknown) {
+    return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
