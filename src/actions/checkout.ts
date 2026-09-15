@@ -95,7 +95,10 @@ export async function processCheckoutOrder(orderData: {
           : "No se pudo iniciar el pago. Contáctanos por WhatsApp.";
     }
 
-    // 3. Insertar el pedido (sin .select() → funciona para visitantes con RLS)
+    // 3. Insertar el pedido con SERVICE ROLE (solo servidor).
+    //    Al no requerir permisos públicos, se puede tener RLS activo y cerrado.
+    const insertClient = createAdminClient() ?? supabase;
+
     const insertPayload: Record<string, unknown> = {
       id: orderId,
       client_id: user?.id || null,
@@ -120,17 +123,17 @@ export async function processCheckoutOrder(orderData: {
     let orderError: { message: string; code?: string } | null = null;
 
     if (preferenceId) {
-      const first = await supabase.from("orders").insert(insertPayload);
+      const first = await insertClient.from("orders").insert(insertPayload);
       if (first.error && first.error.code === "42703" && insertPayload.payment_reference) {
         // La columna payment_reference no existe aún: reintentamos sin ella
         delete insertPayload.payment_reference;
-        const retry = await supabase.from("orders").insert(insertPayload);
+        const retry = await insertClient.from("orders").insert(insertPayload);
         orderError = retry.error;
       } else {
         orderError = first.error;
       }
     } else {
-      const res = await supabase.from("orders").insert(insertPayload);
+      const res = await insertClient.from("orders").insert(insertPayload);
       orderError = res.error;
     }
 
@@ -172,7 +175,7 @@ export async function processCheckoutOrder(orderData: {
       };
     });
 
-    const { error: itemsError } = await supabase
+    const { error: itemsError } = await insertClient
       .from("order_items")
       .insert(itemsToInsert);
 
@@ -282,8 +285,10 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
 }
 
 // Action to validate dynamic coupon code (tabla real: discounts)
+// Se lee con SERVICE ROLE para poder cerrar la lectura pública de cupones
+// (así nadie puede enumerar códigos desde el navegador).
 export async function validateCoupon(code: string, subtotal: number) {
-  const supabase = await createClient();
+  const supabase = createAdminClient() ?? (await createClient());
 
   const { data: coupon, error } = await supabase
     .from("discounts")
