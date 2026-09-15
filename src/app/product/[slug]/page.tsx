@@ -43,12 +43,25 @@ export default async function ProductPage({
 
   const mainImage = product.images && product.images.length > 0 ? product.images[0] : null;
 
-  // Complementos ("Complementa tu regalo"): productos de la categoría por slug
-  const { data: complementCategory } = await supabase
+  // Complementos ("Complementa tu regalo"):
+  // buscamos la categoría por slug y, si no coincide exacto, por nombre parecido
+  // (así funciona aunque la creen con un slug ligeramente distinto).
+  const { data: categoryList } = await supabase
     .from("categories")
-    .select("id")
-    .eq("slug", "complementa-tu-regalo")
-    .maybeSingle();
+    .select("id, name, slug");
+
+  const complementCategory =
+    (categoryList || []).find((c) => c.slug === "complementa-tu-regalo") ||
+    (categoryList || []).find((c) =>
+      String(c.name || "")
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .includes("complementa")
+    ) ||
+    (categoryList || []).find((c) =>
+      String(c.slug || "").toLowerCase().includes("complement")
+    );
 
   const { data: complementos } = complementCategory
     ? await supabase
