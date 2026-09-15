@@ -26,7 +26,7 @@ export default async function TiendaPage({
   // 2. Construir la consulta de productos
   let productsQuery = supabase
     .from("products")
-    .select("*")
+    .select("id, name, slug, price, images, is_in_stock_item")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 

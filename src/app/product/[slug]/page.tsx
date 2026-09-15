@@ -25,7 +25,7 @@ export default async function ProductPage({
   // 3. Consultamos a Supabase con el slug ya extraído
   const { data: product, error } = await supabase
     .from("products")
-    .select("*, category:categories(name, slug)")
+    .select("id, name, slug, description, price, images, custom_options, is_in_stock_item, stock_quantity, anticipation_days, is_custom_cup, is_active, category:categories(name, slug)")
     .eq("slug", slug)
     .eq("is_active", true) // Lo regresamos porque me confirmas que sí es true
     .single();
@@ -55,6 +55,12 @@ export default async function ProductPage({
 
   const mainImage = product.images && product.images.length > 0 ? product.images[0] : null;
 
+  // El join de categoría puede venir como objeto o arreglo según la consulta
+  const categoryData = product.category as { name?: string } | { name?: string }[] | null;
+  const categoryName = Array.isArray(categoryData)
+    ? categoryData[0]?.name
+    : categoryData?.name;
+
   // Complementos ("Complementa tu regalo"):
   // buscamos la categoría por slug y, si no coincide exacto, por nombre parecido
   // (así funciona aunque la creen con un slug ligeramente distinto).
@@ -78,7 +84,7 @@ export default async function ProductPage({
   const { data: complementos } = complementCategory
     ? await supabase
         .from("products")
-        .select("*")
+        .select("id, name, slug, price, images")
         .eq("category_id", complementCategory.id)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -106,9 +112,9 @@ export default async function ProductPage({
           {/* Columna Derecha: Información y Compra */}
           <div className="w-full lg:w-1/2 flex flex-col justify-center">
             
-            {product.category && (
+            {categoryName && (
               <span className="text-sage font-bold uppercase tracking-widest text-xs mb-3 block">
-                {product.category.name}
+                {categoryName}
               </span>
             )}
             

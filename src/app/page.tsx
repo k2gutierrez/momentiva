@@ -15,7 +15,7 @@ export default async function Home() {
   // 1. Fetch active products
   const { data: products } = await supabase
     .from("products")
-    .select("*")
+    .select("id, name, slug, price, images")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
