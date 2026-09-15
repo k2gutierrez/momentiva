@@ -145,6 +145,9 @@ export default async function ProductPage({
       <ProductTabs description={product.description || ""} />
 
       {/* Sección: Complementa tu Regalo */}
+      {/* Sección de complementos: solo si el producto tiene activado "llevar producto complementario"
+          (columna has_complements; si no existe o está nula, se muestra por defecto) */}
+      {product.has_complements !== false && (
       <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-12">
@@ -202,6 +205,7 @@ export default async function ProductPage({
           )}
         </div>
       </section>
+      )}
 
       <Footer />
     </main>
