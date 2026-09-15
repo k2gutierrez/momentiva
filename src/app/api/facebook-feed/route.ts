@@ -11,10 +11,26 @@ function csvValue(value: string | number | null | undefined): string {
   return `"${s.replace(/"/g, '""')}"`;
 }
 
+// URL base pública del sitio. En producción el servidor puede verse como 0.0.0.0:3000,
+// así que preferimos NEXT_PUBLIC_SITE_URL y, si no está, el host real de la petición.
+function resolveBaseUrl(request: Request): string {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  if (configured) return configured.replace(/\/+$/, "");
+
+  const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
+  const proto = request.headers.get("x-forwarded-proto") || (host.includes("localhost") ? "http" : "https");
+
+  if (host && !host.startsWith("0.0.0.0") && !host.startsWith("127.0.0.1")) {
+    return `${proto}://${host}`;
+  }
+
+  return new URL(request.url).origin;
+}
+
 export async function GET(request: Request) {
   const supabase = await createClient();
 
-  const origin = new URL(request.url).origin;
+  const origin = resolveBaseUrl(request);
 
   const { data: products, error } = await supabase
     .from("products")
