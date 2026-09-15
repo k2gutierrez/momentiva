@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PlayCircleIcon, InstagramLogoIcon, CopyIcon } from '@phosphor-icons/react/dist/ssr';
 
 interface InstaPost {
@@ -13,8 +13,22 @@ interface InstaPost {
 
 // El feed llega desde el servidor: preferentemente sincronizado con Instagram
 // (Graph API de Meta); si no hay token, se usa el feed manual del admin.
+// Opcional: si se configura NEXT_PUBLIC_SOCIABLEKIT_EMBED_ID, se muestra el
+// widget de SociableKit en lugar del feed propio.
 export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
   const [showAll, setShowAll] = useState(false);
+  const sociableEmbedId = process.env.NEXT_PUBLIC_SOCIABLEKIT_EMBED_ID || "";
+
+  // Cargar el script del widget de SociableKit una sola vez (si está configurado)
+  useEffect(() => {
+    if (!sociableEmbedId) return;
+    if (document.querySelector('script[src="https://widgets.sociablekit.com/instagram-feed/widget.js"]')) return;
+
+    const script = document.createElement("script");
+    script.src = "https://widgets.sociablekit.com/instagram-feed/widget.js";
+    script.defer = true;
+    document.body.appendChild(script);
+  }, [sociableEmbedId]);
 
   // Si no ha dado clic en "Ver más", solo mostramos los primeros 8 elementos
   const displayedPosts = showAll ? posts : posts.slice(0, 8);
@@ -58,8 +72,12 @@ export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
           </a>
         </div>
 
-        {/* Grid de publicaciones (sincronizado con Instagram vía Graph API) */}
-        {posts.length > 0 ? (
+        {/* Widget de SociableKit (si está configurado) o feed propio sincronizado */}
+        {sociableEmbedId ? (
+          <div className="mb-8">
+            <div className="sk-instagram-feed" data-embed-id={sociableEmbedId}></div>
+          </div>
+        ) : posts.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-1 mb-8">
             {displayedPosts.map((post) => (
               <a
@@ -95,7 +113,7 @@ export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
 
         {/* Action Buttons */}
         <div className="flex justify-center gap-4 mt-8">
-          {!showAll && posts.length > 8 && (
+          {!sociableEmbedId && !showAll && posts.length > 8 && (
             <button
               onClick={() => setShowAll(true)}
               className="bg-[#3A243F] hover:bg-opacity-90 text-white font-bold py-3 px-8 rounded-md transition-colors text-sm"
