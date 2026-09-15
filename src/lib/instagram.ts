@@ -1,7 +1,12 @@
 import "server-only";
 
-// Feed de Instagram vía Graph API (Meta) — solo servidor.
-// El token INSTAGRAM_ACCESS_TOKEN se renueva ~cada 60 días desde Meta Developers.
+// Feed de Instagram (solo servidor). Soporta DOS modos:
+//
+// 1) API de Instagram (token de Instagram Login) — actual:
+//    requiere INSTAGRAM_ACCESS_TOKEN. Token de ~60 días (renovable).
+// 2) API de Facebook Graph con Usuario de Sistema (token PERMANENTE):
+//    requiere INSTAGRAM_ACCESS_TOKEN (del System User) + INSTAGRAM_BUSINESS_ID.
+//    Si INSTAGRAM_BUSINESS_ID está configurado, se usa este modo automáticamente.
 
 export interface InstaMediaItem {
   id: string;
@@ -11,18 +16,25 @@ export interface InstaMediaItem {
   timestamp: string;
 }
 
+const FIELDS = "id,media_type,media_url,thumbnail_url,permalink,timestamp";
+
 export async function fetchInstagramFeed(limit = 12): Promise<InstaMediaItem[]> {
   const token = process.env.INSTAGRAM_ACCESS_TOKEN;
   if (!token) return [];
 
+  const businessId = process.env.INSTAGRAM_BUSINESS_ID;
+
+  // Modo 2 (token permanente): Graph API de Facebook con el ID de la cuenta de Instagram Business
+  const url = businessId
+    ? `https://graph.facebook.com/v22.0/${businessId}/media?fields=${FIELDS}&limit=${limit}&access_token=${encodeURIComponent(token)}`
+    : `https://graph.instagram.com/v22.0/me/media?fields=${FIELDS}&limit=${limit}&access_token=${encodeURIComponent(token)}`;
+
   try {
-    const res = await fetch(
-      `https://graph.instagram.com/v22.0/me/media?fields=id,media_type,media_url,thumbnail_url,permalink,timestamp&limit=${limit}&access_token=${encodeURIComponent(token)}`,
-      { next: { revalidate: 3600 } } // caché de 1 hora (los media_url son temporales)
-    );
+    const res = await fetch(url, { next: { revalidate: 3600 } }); // caché de 1 hora
 
     if (!res.ok) {
-      console.warn("Instagram Graph API error:", res.status);
+      const detail = await res.text().catch(() => "");
+      console.warn("Instagram API error:", res.status, detail.slice(0, 300));
       return [];
     }
 
