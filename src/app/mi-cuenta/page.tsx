@@ -351,7 +351,7 @@ export default function MiCuentaPage() {
                           <div className="space-y-3">
                             {(order.order_items || []).map((item, idx) => {
                               const product = item.product;
-                              const image = product?.images?.[0] || "/placeholder.jpg";
+                              const image = product?.images?.[0] || "/placeholder.png";
                               return (
                                 <div key={idx} className="flex items-center gap-4 bg-cream/30 p-3 rounded-xl border border-lilaPastel/30">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}

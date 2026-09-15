@@ -148,7 +148,7 @@ export default async function ProductPage({
                 name: product.name,
                 price: product.price,
                 slug: product.slug,
-                image: mainImage || "/placeholder.jpg",
+                image: mainImage || "/placeholder.png",
                 custom_options: product.custom_options
               }}
               anticipationDays={product.anticipation_days || 0}
