@@ -50,7 +50,6 @@ export async function createProduct(formData: FormData) {
     }
 
     const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
-    const hasComplements = formData.get("hasComplements") !== "false";
 
     const insertData: Record<string, unknown> = {
       name,
@@ -65,17 +64,9 @@ export async function createProduct(formData: FormData) {
       is_custom_cup: isCustomCup,
       custom_options: customOptions,
       images,
-      has_complements: hasComplements,
     };
 
-    let { error: insertError } = await supabase.from("products").insert(insertData);
-
-    // Si la columna has_complements aún no existe en la BD, reintentamos sin ella
-    if (insertError && insertError.code === "42703") {
-      delete insertData.has_complements;
-      const retry = await supabase.from("products").insert(insertData);
-      insertError = retry.error;
-    }
+    const { error: insertError } = await supabase.from("products").insert(insertData);
 
     if (insertError) throw new Error(`Error saving product: ${insertError.message}`);
 
@@ -152,7 +143,6 @@ export async function updateProduct(id: string, formData: FormData) {
       anticipation_days: anticipationDays,
       is_custom_cup: isCustomCup,
       custom_options: customOptions,
-      has_complements: formData.get("hasComplements") !== "false",
     };
 
     // Si hay imágenes (existentes + nuevas), actualizamos el arreglo
@@ -160,20 +150,10 @@ export async function updateProduct(id: string, formData: FormData) {
       payload.images = mergedImages;
     }
 
-    let { error: updateError } = await supabase
+    const { error: updateError } = await supabase
       .from("products")
       .update(payload)
       .eq("id", id);
-
-    // Si la columna has_complements aún no existe en la BD, reintentamos sin ella
-    if (updateError && updateError.code === "42703") {
-      delete payload.has_complements;
-      const retry = await supabase
-        .from("products")
-        .update(payload)
-        .eq("id", id);
-      updateError = retry.error;
-    }
 
     if (updateError) throw new Error(`Error actualizando base de datos: ${updateError.message}`);
 

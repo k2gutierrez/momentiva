@@ -32,12 +32,24 @@ export default async function ProductPage({
 
   if (error || !product) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-10 text-center">
-        <div className="bg-red-50 p-6 rounded-xl border border-red-200">
-          <h1 className="text-red-500 font-bold text-xl mb-2">Error cargando el producto</h1>
-          <p className="text-gray-600">{error?.message || "El producto no existe."}</p>
+      <main className="bg-cream min-h-screen flex flex-col">
+        <Header />
+        <div className="flex-1 flex items-center justify-center p-10 text-center">
+          <div className="bg-white p-10 rounded-3xl shadow-sm max-w-md">
+            <h1 className="text-2xl font-bold text-berenjena mb-3">Producto no disponible</h1>
+            <p className="text-gray-500 mb-6">
+              Este producto ya no está publicado o el enlace cambió. Te invitamos a ver el catálogo actualizado.
+            </p>
+            <Link
+              href="/tienda"
+              className="inline-block bg-terracota hover:bg-opacity-90 text-white font-bold py-3 px-8 rounded-xl transition-all shadow-sm"
+            >
+              Ver la tienda
+            </Link>
+          </div>
         </div>
-      </div>
+        <Footer />
+      </main>
     );
   }
 
@@ -145,9 +157,9 @@ export default async function ProductPage({
       <ProductTabs description={product.description || ""} />
 
       {/* Sección: Complementa tu Regalo */}
-      {/* Sección de complementos: solo si el producto tiene activado "llevar producto complementario"
-          (columna has_complements; si no existe o está nula, se muestra por defecto) */}
-      {product.has_complements !== false && (
+      {/* Sección de complementos: se muestra si el producto tiene activado
+          "Complementa tu regalo" (columna is_custom_cup, que también habilita el previsualizador de taza) */}
+      {product.is_custom_cup === true && (
       <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-12">

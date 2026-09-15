@@ -26,7 +26,6 @@ export default function NewProductPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isStockItem, setIsStockItem] = useState(false);
   const [isCustomCup, setIsCustomCup] = useState(false);
-  const [hasComplements, setHasComplements] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [customOptions, setCustomOptions] = useState<CustomOption[]>([]);
@@ -114,7 +113,6 @@ export default function NewProductPage() {
 
       formData.append("isStockItem", isStockItem.toString());
       formData.append("isCustomCup", isCustomCup.toString());
-      formData.append("hasComplements", hasComplements.toString());
 
       const formattedOptions = customOptions.map((opt) => ({
         ...opt,
@@ -260,11 +258,7 @@ export default function NewProductPage() {
           )}
           <div className="flex items-center gap-4 mt-6">
             <input type="checkbox" id="cupToggle" className="w-5 h-5 accent-terracota cursor-pointer" checked={isCustomCup} onChange={() => setIsCustomCup(!isCustomCup)} />
-            <label htmlFor="cupToggle" className="font-bold text-berenjena cursor-pointer">Habilitar Previsualizador 2D de Taza para este producto</label>
-          </div>
-          <div className="flex items-center gap-4 mt-3">
-            <input type="checkbox" id="complementsToggle" className="w-5 h-5 accent-terracota cursor-pointer" checked={hasComplements} onChange={() => setHasComplements(!hasComplements)} />
-            <label htmlFor="complementsToggle" className="font-bold text-berenjena cursor-pointer">Mostrar &quot;Complementa tu regalo&quot; en este producto</label>
+            <label htmlFor="cupToggle" className="font-bold text-berenjena cursor-pointer">Mostrar &quot;Complementa tu regalo&quot; y previsualizador de taza en este producto</label>
           </div>
         </div>
 

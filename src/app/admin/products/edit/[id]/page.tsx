@@ -37,7 +37,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [stockQuantity, setStockQuantity] = useState("");
   const [anticipationDays, setAnticipationDays] = useState("");
   const [isCustomCup, setIsCustomCup] = useState(false);
-  const [hasComplements, setHasComplements] = useState(true);
   const [existingImages, setExistingImages] = useState<string[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
 
@@ -73,7 +72,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       setStockQuantity(product.stock_quantity?.toString() || "");
       setAnticipationDays(product.anticipation_days?.toString() || "");
       setIsCustomCup(product.is_custom_cup || false);
-      setHasComplements(product.has_complements !== false);
       setExistingImages(Array.isArray(product.images) ? (product.images as string[]) : []);
 
       // Procesar custom_options (choices ya es un arreglo)
@@ -172,7 +170,6 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
       formData.append("isStockItem", isStockItem.toString());
       formData.append("isCustomCup", isCustomCup.toString());
-      formData.append("hasComplements", hasComplements.toString());
       formData.append("existingImages", JSON.stringify(existingImages));
 
       const formattedOptions = customOptions.map((opt) => ({
@@ -323,11 +320,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           )}
           <div className="flex items-center gap-4 mt-6">
             <input type="checkbox" id="cupToggle" checked={isCustomCup} onChange={() => setIsCustomCup(!isCustomCup)} className="w-5 h-5 accent-terracota" />
-            <label htmlFor="cupToggle" className="font-bold text-berenjena">Habilitar Previsualizador 2D de Taza</label>
-          </div>
-          <div className="flex items-center gap-4 mt-3">
-            <input type="checkbox" id="complementsToggle" checked={hasComplements} onChange={() => setHasComplements(!hasComplements)} className="w-5 h-5 accent-terracota" />
-            <label htmlFor="complementsToggle" className="font-bold text-berenjena">Mostrar &quot;Complementa tu regalo&quot; en este producto</label>
+            <label htmlFor="cupToggle" className="font-bold text-berenjena">Mostrar &quot;Complementa tu regalo&quot; y previsualizador de taza</label>
           </div>
         </div>
 
