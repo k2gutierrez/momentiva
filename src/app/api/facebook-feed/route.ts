@@ -14,7 +14,8 @@ function csvValue(value: string | number | null | undefined): string {
 // URL base pública del sitio. En producción el servidor puede verse como 0.0.0.0:3000,
 // así que preferimos NEXT_PUBLIC_SITE_URL y, si no está, el host real de la petición.
 function resolveBaseUrl(request: Request): string {
-  const configured = process.env.NEXT_PUBLIC_SITE_URL;
+  // SITE_URL es de servidor (no se incrusta en el build); NEXT_PUBLIC_SITE_URL como respaldo
+  const configured = process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL;
   if (configured) return configured.replace(/\/+$/, "");
 
   const host = request.headers.get("x-forwarded-host") || request.headers.get("host") || "";
