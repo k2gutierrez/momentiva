@@ -15,7 +15,7 @@ export default async function Home() {
   // 1. Fetch active products
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, slug, price, images")
+    .select("id, name, slug, price, images, category_id")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
@@ -38,10 +38,16 @@ export default async function Home() {
   const instaFeed = graphPosts.length > 0 ? graphPosts : (instaPosts || []);
 
   // 4. Categorías para el menú "¿Qué quieres celebrar?"
+  //    Solo mostramos las que ya tienen al menos un producto activo: las vacías
+  //    quedan ocultas y aparecen solas en cuanto se les agregue un producto.
   const { data: categories } = await supabase
     .from("categories")
     .select("id, name, slug")
     .order("name", { ascending: true });
+
+  const categoriasConProductos = (categories || []).filter((cat) =>
+    (products || []).some((p) => p.category_id === cat.id)
+  );
 
   return (
     <main className="bg-white min-h-screen">
@@ -100,7 +106,7 @@ export default async function Home() {
             >
               Todos
             </Link>
-            {(categories || []).map((cat) => (
+            {categoriasConProductos.map((cat) => (
               <Link
                 key={cat.id}
                 href={`/tienda?categoria=${cat.slug}`}

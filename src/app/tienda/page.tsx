@@ -23,7 +23,21 @@ export default async function TiendaPage({
     .select("*")
     .order("name", { ascending: true });
 
-  // 2. Construir la consulta de productos
+  // 2. Productos activos: los usamos para saber qué categorías sí tienen algo
+  //    que mostrar (las pills vacías quedan ocultas y aparecen solas cuando se
+  //    agregue el primer producto).
+  const { data: productosActivos } = await supabase
+    .from("products")
+    .select("category_id")
+    .eq("is_active", true);
+
+  const categoriasConProductos = new Set(
+    (productosActivos || [])
+      .map((p) => p.category_id)
+      .filter((id): id is string => Boolean(id))
+  );
+
+  // 3. Construir la consulta de productos
   let productsQuery = supabase
     .from("products")
     .select("id, name, slug, price, images, is_in_stock_item")
@@ -73,7 +87,9 @@ export default async function TiendaPage({
               Todos
             </Link>
             
-            {categories?.map((cat) => (
+            {categories
+              ?.filter((cat) => categoriasConProductos.has(cat.id))
+              .map((cat) => (
               <Link
                 key={cat.id}
                 href={`/tienda?categoria=${cat.slug}`}
