@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { marcaTiempoDeSlug, slugDeProducto, slugify } from "@/lib/slug";
 
 export async function createProduct(formData: FormData) {
   try {
@@ -49,7 +50,7 @@ export async function createProduct(formData: FormData) {
       images.push(publicUrlData.publicUrl);
     }
 
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now();
+    const slug = slugDeProducto(name);
 
     const insertData: Record<string, unknown> = {
       name,
@@ -145,6 +146,19 @@ export async function updateProduct(id: string, formData: FormData) {
       custom_options: customOptions,
     };
 
+    // Si el nombre cambió, regeneramos el slug (conservando la marca de tiempo)
+    // para que la URL describa siempre al producto actual. Antes se quedaba el
+    // slug viejo y una copia renombrada arrastraba el nombre del original.
+    const { data: actual } = await supabase
+      .from("products")
+      .select("name, slug")
+      .eq("id", id)
+      .single();
+
+    if (actual && actual.name !== name) {
+      payload.slug = slugDeProducto(name, marcaTiempoDeSlug(actual.slug));
+    }
+
     // Si hay imágenes (existentes + nuevas), actualizamos el arreglo
     if (mergedImages.length > 0) {
       payload.images = mergedImages;
@@ -159,8 +173,9 @@ export async function updateProduct(id: string, formData: FormData) {
 
     revalidatePath("/admin/products");
     revalidatePath("/tienda");
-    revalidatePath(`/product/${id}`); 
-    
+    revalidatePath("/");
+    revalidatePath("/product/[slug]", "page");
+
     return { success: true };
     
   } catch (error: unknown) {
@@ -202,18 +217,12 @@ export async function duplicateProduct(id: string) {
     if (error || !original) throw new Error("Producto no encontrado");
 
     const baseName = String(original.name || "Producto").replace(/ \(copia( \d+)?\)$/i, "");
-    const slugBase = baseName
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "");
 
     const { data: created, error: insertError } = await supabase
       .from("products")
       .insert({
         name: `${baseName} (copia)`,
-        slug: `${slugBase || "producto"}-${Date.now()}`,
+        slug: slugDeProducto(baseName),
         category_id: original.category_id,
         description: original.description,
         price: original.price,

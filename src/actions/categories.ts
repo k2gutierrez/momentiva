@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { slugify } from "@/lib/slug";
 
 export async function createCategory(formData: FormData) {
   const supabase = await createClient();
@@ -10,8 +11,8 @@ export async function createCategory(formData: FormData) {
     const name = formData.get("name") as string;
     const description = formData.get("description") as string;
     
-    // Auto-generate a URL-friendly slug (e.g., "Regalos Especiales" -> "regalos-especiales")
-    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    // Auto-generate a URL-friendly slug (e.g., "Bebé" -> "bebe")
+    const slug = slugify(name);
 
     const { error } = await supabase.from("categories").insert({
       name,
@@ -52,11 +53,7 @@ export async function updateCategory(id: string, formData: FormData) {
 
     if (!name) throw new Error("El nombre es obligatorio");
 
-    const slug = name
-      .toLowerCase()
-      .trim()
-      .replace(/[^\w\s-]/g, "")
-      .replace(/[\s_-]+/g, "-");
+    const slug = slugify(name);
 
     const { error } = await supabase
       .from("categories")

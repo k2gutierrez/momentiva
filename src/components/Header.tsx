@@ -90,7 +90,7 @@ export default function Header() {
                 <Link href="/tienda?categoria=cumpleanos" className="block px-6 py-3 text-xs font-bold text-berenjena hover:text-terracota border-b border-white/50 transition-colors">
                   Cumpleaños
                 </Link>
-                <Link href="/tienda?categoria=aniversario" className="block px-6 py-3 text-xs font-bold text-berenjena hover:text-terracota transition-colors">
+                <Link href="/tienda?categoria=aniversarios" className="block px-6 py-3 text-xs font-bold text-berenjena hover:text-terracota transition-colors">
                   Aniversario
                 </Link>
               </div>
@@ -176,7 +176,7 @@ export default function Header() {
                   <Link href="/tienda" onClick={() => setMobileMenuOpen(false)} className="text-xs text-berenjena">Ver Toda la Tienda</Link>
                   <Link href="/tienda?categoria=personalizados" onClick={() => setMobileMenuOpen(false)} className="text-xs text-berenjena">Personalizados</Link>
                   <Link href="/tienda?categoria=cumpleanos" onClick={() => setMobileMenuOpen(false)} className="text-xs text-berenjena">Cumpleaños</Link>
-                  <Link href="/tienda?categoria=aniversario" onClick={() => setMobileMenuOpen(false)} className="text-xs text-berenjena">Aniversario</Link>
+                  <Link href="/tienda?categoria=aniversarios" onClick={() => setMobileMenuOpen(false)} className="text-xs text-berenjena">Aniversario</Link>
                 </div>
               )}
             </div>
