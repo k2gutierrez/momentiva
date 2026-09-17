@@ -64,7 +64,7 @@ export default async function Home() {
       </section>
 
       {/* Quick Filters (Cuadros Grandes) */}
-      <section className="bg-white py-12">
+      {/*<section className="bg-white py-12">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
             <Link href="/tienda?categoria=aniversarios" className="bg-[#EBE0EC] aspect-square flex flex-col items-center justify-center p-6 hover:shadow-lg transition-all duration-300 group">
@@ -85,7 +85,7 @@ export default async function Home() {
             </Link>
           </div>
         </div>
-      </section>
+      </section>*/}
 
       {/* Menú de categorías (igual que en Tienda) */}
       <section className="bg-white pb-8">
