@@ -80,9 +80,16 @@ export async function createPaymentPreference({
   }
 
   return {
-    // En modo de prueba usamos el checkout sandbox (donde las tarjetas de prueba aprueban);
-    // en producción data.sandbox_init_point no existe y se usa el init_point normal.
-    initPoint: (data.sandbox_init_point as string | undefined) || (data.init_point as string),
+    // OJO: Mercado Pago devuelve SIEMPRE los dos enlaces, incluso en producción:
+    //   init_point         -> checkout real  (www.mercadopago.com.mx)
+    //   sandbox_init_point -> checkout de pruebas (sandbox.mercadopago.com.mx)
+    // Antes se prefería el de sandbox, así que con credenciales de producción los
+    // clientes habrían ido al checkout de pruebas y NINGUNA tarjeta real cobraba.
+    // Ahora se decide por el tipo de credencial: TEST- = pruebas, APP_USR- = real.
+    initPoint:
+      token.startsWith("TEST-") && data.sandbox_init_point
+        ? (data.sandbox_init_point as string)
+        : (data.init_point as string),
     preferenceId: data.id as string,
   };
 }
