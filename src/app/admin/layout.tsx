@@ -72,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             href="/" 
             className="flex items-center gap-3 px-4 py-3 w-full text-left rounded-xl hover:bg-white/10 hover:text-white transition-colors"
           >
-            <SignOutIcon size={22} weight="light" />
+            <StorefrontIcon size={22} weight="light" />
             Ir a la Tienda
           </Link>
         </div>
@@ -98,8 +98,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
           </div>
 
-          <div className="w-10 h-10 bg-sage rounded-full flex items-center justify-center text-white font-bold shadow-md border-2 border-white">
-            M
+          <div className="flex items-center gap-4">
+            {/* Volver a la tienda: siempre visible, abre el sitio en otra pestaña
+                para no perder lo que se esté haciendo en el panel */}
+            <a
+              href="/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2.5 bg-terracota hover:opacity-90 text-white rounded-xl font-bold text-sm shadow-sm transition-opacity"
+            >
+              <StorefrontIcon size={18} weight="bold" />
+              <span className="hidden sm:inline">Ver la tienda</span>
+            </a>
+
+            <div className="w-10 h-10 bg-sage rounded-full flex items-center justify-center text-white font-bold shadow-md border-2 border-white">
+              M
+            </div>
           </div>
         </header>
 
