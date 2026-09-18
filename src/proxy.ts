@@ -2,6 +2,13 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
+  // El optimizador de imágenes de Next no se usa en este proyecto (todas las
+  // imágenes son <img>). Se bloquea porque es la puerta de entrada de varias
+  // vulnerabilidades conocidas de sharp/libvips (AVIF, SVG) y no aporta nada.
+  if (request.nextUrl.pathname.startsWith("/_next/image")) {
+    return new NextResponse("Not found", { status: 404 });
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -61,5 +68,5 @@ export async function proxy(request: NextRequest) {
 
 // Specify matcher to run middleware on admin routes
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/_next/image"],
 };
