@@ -124,17 +124,17 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
         <>
           <button
             onClick={handlePrev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 hover:bg-white/30 backdrop-blur-md text-white rounded-full transition-colors"
+            className="absolute left-2 bottom-4 md:left-4 md:bottom-auto md:top-1/2 md:-translate-y-1/2 z-30 p-2 md:p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-full transition-colors"
             aria-label="Anterior"
           >
-            <CaretLeftIcon size={24} weight="bold" />
+            <CaretLeftIcon size={20} weight="bold" />
           </button>
           <button
             onClick={handleNext}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-3 bg-white/10 hover:bg-white/30 backdrop-blur-md text-white rounded-full transition-colors"
+            className="absolute right-2 bottom-4 md:right-4 md:bottom-auto md:top-1/2 md:-translate-y-1/2 z-30 p-2 md:p-3 bg-white/20 hover:bg-white/40 backdrop-blur-md text-white rounded-full transition-colors"
             aria-label="Siguiente"
           >
-            <CaretRightIcon size={24} weight="bold" />
+            <CaretRightIcon size={20} weight="bold" />
           </button>
 
           {/* Indicator Dots */}

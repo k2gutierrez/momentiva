@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import { es } from "react-day-picker/locale";
 import "react-day-picker/style.css";
@@ -42,6 +42,12 @@ export default function DeliveryDateTimePicker({
   onDateChange,
   onTimeChange,
 }: DeliveryDateTimePickerProps) {
+  // El calendario depende de "hoy" y de la zona horaria del visitante, que no es
+  // la del servidor (Hostinger corre en UTC). Se dibuja solo en el navegador para
+  // que el HTML del servidor y el del cliente coincidan (error de hidratación).
+  const [montado, setMontado] = useState(false);
+  useEffect(() => setMontado(true), []);
+
   // Primer día disponible = hoy + días de anticipación del producto (a medianoche local)
   const fechaMinima = useMemo(() => {
     const d = new Date();
@@ -84,20 +90,24 @@ export default function DeliveryDateTimePicker({
           Fecha de entrega <span className="text-terracota">*</span>
         </label>
 
-        <div className="rounded-2xl border border-lilaPastel bg-white p-1 sm:p-3 flex justify-center overflow-x-auto">
-          <DayPicker
-            className="rdp-momentiva"
-            mode="single"
-            locale={es}
-            weekStartsOn={1}
-            selected={seleccionada}
-            onSelect={(dia) => onDateChange(dia ? aIso(dia) : "")}
-            disabled={noDisponible}
-            defaultMonth={mesInicial}
-            startMonth={fechaMinima}
-            endMonth={finDeRango}
-            showOutsideDays
-          />
+        <div className="rounded-2xl border border-lilaPastel bg-white p-1 sm:p-3 flex justify-center overflow-x-auto min-h-[320px] items-center">
+          {montado ? (
+            <DayPicker
+              className="rdp-momentiva"
+              mode="single"
+              locale={es}
+              weekStartsOn={1}
+              selected={seleccionada}
+              onSelect={(dia) => onDateChange(dia ? aIso(dia) : "")}
+              disabled={noDisponible}
+              defaultMonth={mesInicial}
+              startMonth={fechaMinima}
+              endMonth={finDeRango}
+              showOutsideDays
+            />
+          ) : (
+            <span className="text-xs text-gray-400 py-16">Cargando calendario…</span>
+          )}
         </div>
 
         <p className="text-xs text-gray-500 mt-2">
@@ -111,10 +121,16 @@ export default function DeliveryDateTimePicker({
           </p>
         )}
 
-        {anticipationDays > 0 && (
+        {montado && anticipationDays > 0 && (
           <p className="text-xs text-gray-500 mt-1">
             Este producto se prepara con {anticipationDays} día(s) de anticipación,
-            por eso el calendario inicia el {aIso(fechaMinima)}.
+            por eso el calendario inicia el{" "}
+            {fechaMinima.toLocaleDateString("es-MX", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}
+            .
           </p>
         )}
       </div>
