@@ -19,6 +19,12 @@ export interface CheckoutDeliveryAddress {
   deliveryTime?: string;
   /** Fecha y hora que había elegido el cliente en cada producto del carrito. */
   fechasPorProducto?: { name: string; fecha: string; hora?: string }[];
+  /** Quien envía el regalo (nombre y teléfono). */
+  remitente?: { nombre?: string; telefono?: string };
+  /** Quien recibe el regalo (nombre, teléfono y dirección). */
+  destinatario?: { nombre?: string; telefono?: string; direccion?: string };
+  /** El cliente marcó que es un regalo sorpresa. */
+  esSorpresa?: boolean;
 }
 
 // Bucket PRIVADO donde viven las fotos que sube el cliente (fotos de personas).
@@ -467,7 +473,19 @@ export async function processCheckoutOrder(orderData: {
             token: pushoverAppToken,
             user: pushoverUserKey,
             title: "🎉 ¡Nuevo Pedido en Momentiva!",
-            message: `Cliente: ${orderData.deliveryAddress.fullName}\nTotal: $${orderData.totalAmount.toFixed(2)} MXN\nEntrega: ${orderData.deliveryDate}\nC.P.: ${orderData.deliveryZipCode}`,
+            message:
+              `Entrega: ${orderData.deliveryAddress.fullName || "cliente"}` +
+              (orderData.deliveryAddress.destinatario?.telefono
+                ? ` (${orderData.deliveryAddress.destinatario.telefono})`
+                : "") +
+              `\nEnvía: ${orderData.deliveryAddress.remitente?.nombre || "—"}` +
+              (orderData.deliveryAddress.remitente?.telefono
+                ? ` (${orderData.deliveryAddress.remitente.telefono})`
+                : "") +
+              `\nTotal: $${totalServidor.toFixed(2)} MXN\nFecha: ${orderData.deliveryDate}` +
+              (orderData.deliveryAddress.deliveryTime ? ` · ${orderData.deliveryAddress.deliveryTime}` : "") +
+              `\nC.P.: ${orderData.deliveryZipCode}` +
+              (orderData.deliveryAddress.esSorpresa ? "\n🎁 REGALO SORPRESA" : ""),
           }),
         });
       } catch (pErr) {

@@ -46,9 +46,15 @@ export default function CheckoutPage() {
 
   // Address fields
   // Address fields (prellenados con los datos del perfil si hay sesión iniciada)
+  // Quien RECIBE el regalo (fullName/phone/streetAddress se conservan con estos
+  // nombres para no romper pedidos ni vistas anteriores).
   const [fullName, setFullName] = useState(() => profile?.full_name || "");
   const [phone, setPhone] = useState(() => profile?.phone || "");
   const [streetAddress, setStreetAddress] = useState(() => profile?.address || "");
+  // Quien ENVÍA el regalo
+  const [senderName, setSenderName] = useState(() => profile?.full_name || "");
+  const [senderPhone, setSenderPhone] = useState(() => profile?.phone || "");
+  const [esSorpresa, setEsSorpresa] = useState(false);
   const [notes, setNotes] = useState("");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -202,10 +208,15 @@ export default function CheckoutPage() {
     const result = await processCheckoutOrder({
       deliveryZipCode: zipCode,
       deliveryAddress: {
+        // Quien recibe (campos de siempre, para compatibilidad)
         fullName,
         phone,
         streetAddress,
         notes,
+        // Datos completos de envío
+        remitente: { nombre: senderName, telefono: senderPhone },
+        destinatario: { nombre: fullName, telefono: phone, direccion: streetAddress },
+        esSorpresa,
         municipality: deliveryZone.municipality,
         zoneName: deliveryZone.municipality,
         deliveryTime,
@@ -356,30 +367,84 @@ export default function CheckoutPage() {
                 2. Datos de Entrega
               </h3>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-berenjena mb-1">Nombre Completo</label>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="Quien recibe o solicita"
-                    className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-cream/30 text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-berenjena mb-1">Teléfono / WhatsApp</label>
-                  <input
-                    type="tel"
-                    required
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="33 1234 5678"
-                    className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-cream/30 text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
-                  />
+              {/* ── Quien envía el regalo ── */}
+              <div className="rounded-2xl border border-lilaPastel bg-cream/20 p-4 space-y-4">
+                <p className="text-sm font-bold text-berenjena uppercase tracking-wider">
+                  Quien envía
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-berenjena mb-1">Nombre de quien envía</label>
+                    <input
+                      type="text"
+                      required
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="Tu nombre"
+                      className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-berenjena mb-1">Teléfono de quien envía</label>
+                    <input
+                      type="tel"
+                      required
+                      value={senderPhone}
+                      onChange={(e) => setSenderPhone(e.target.value)}
+                      placeholder="33 1234 5678"
+                      className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
+                    />
+                  </div>
                 </div>
               </div>
+
+              {/* ── Quien recibe el regalo ── */}
+              <div className="rounded-2xl border border-lilaPastel bg-cream/20 p-4 space-y-4">
+                <p className="text-sm font-bold text-berenjena uppercase tracking-wider">
+                  Quien recibe
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold text-berenjena mb-1">Nombre de quien recibe</label>
+                    <input
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Nombre completo de quien recibe"
+                      className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold text-berenjena mb-1">Teléfono de quien recibe</label>
+                    <input
+                      type="tel"
+                      required
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="33 1234 5678"
+                      className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Regalo sorpresa ── */}
+              <label className="flex items-start gap-3 rounded-2xl border border-terracota/40 bg-terracota/5 p-4 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={esSorpresa}
+                  onChange={(e) => setEsSorpresa(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 accent-terracota shrink-0"
+                />
+                <span className="text-sm text-berenjena">
+                  <span className="font-bold">Es un regalo sorpresa 🎁</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    Lo tendremos en cuenta: no revelamos el contenido ni el remitente al
+                    entregar, y te contactamos a ti (no a quien recibe) para coordinar.
+                  </span>
+                </span>
+              </label>
 
               <div>
                 <label className="block text-sm font-bold text-berenjena mb-1">Calle, Número Exterior e Interior</label>

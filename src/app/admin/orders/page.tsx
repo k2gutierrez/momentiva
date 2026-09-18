@@ -47,6 +47,12 @@ interface OrderRow {
     zip_code?: string;
     /** Fecha y hora que había elegido el cliente en cada producto del carrito. */
     fechasPorProducto?: { name: string; fecha: string; hora?: string }[];
+    /** Quien envía el regalo. */
+    remitente?: { nombre?: string; telefono?: string };
+    /** Quien recibe el regalo. */
+    destinatario?: { nombre?: string; telefono?: string; direccion?: string };
+    /** Regalo sorpresa. */
+    esSorpresa?: boolean;
   } | null;
   order_items:
     | {
@@ -333,10 +339,46 @@ export default function AdminOrdersPage() {
                           {/* Datos de entrega */}
                           <div>
                             <h4 className="font-bold text-berenjena mb-3">🚚 Datos de entrega</h4>
-                            <div className="bg-white rounded-xl p-4 shadow-sm text-sm space-y-1.5">
-                              <p><span className="font-bold">Cliente:</span> {order.delivery_address?.fullName || order.delivery_address?.customer_name || "—"}</p>
-                              <p><span className="font-bold">Teléfono:</span> {order.delivery_address?.phone || "—"}</p>
-                              <p><span className="font-bold">Dirección:</span> {order.delivery_address?.streetAddress || "—"}</p>
+                            <div className="bg-white rounded-xl p-4 shadow-sm text-sm space-y-3">
+                              {/* Quién recibe y quién envía, para el reparto */}
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div className="rounded-lg border border-lilaPastel bg-cream/30 p-3">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-sage mb-1">
+                                    Recibe
+                                  </p>
+                                  <p className="font-bold">
+                                    {order.delivery_address?.destinatario?.nombre ||
+                                      order.delivery_address?.fullName ||
+                                      order.delivery_address?.customer_name ||
+                                      "—"}
+                                  </p>
+                                  <p className="text-gray-600">
+                                    {order.delivery_address?.destinatario?.telefono ||
+                                      order.delivery_address?.phone ||
+                                      "sin teléfono"}
+                                  </p>
+                                </div>
+                                <div className="rounded-lg border border-lilaPastel bg-cream/30 p-3">
+                                  <p className="text-xs font-bold uppercase tracking-wider text-sage mb-1">
+                                    Envía
+                                  </p>
+                                  <p className="font-bold">
+                                    {order.delivery_address?.remitente?.nombre || "—"}
+                                  </p>
+                                  <p className="text-gray-600">
+                                    {order.delivery_address?.remitente?.telefono || "sin teléfono"}
+                                  </p>
+                                </div>
+                              </div>
+
+                              {order.delivery_address?.esSorpresa && (
+                                <p className="rounded-lg bg-terracota/10 border border-terracota/40 p-2 font-bold text-berenjena">
+                                  🎁 Regalo sorpresa: no revelar el contenido ni el remitente al
+                                  entregar. Coordinar con quien envía.
+                                </p>
+                              )}
+
+                              <p><span className="font-bold">Dirección:</span> {order.delivery_address?.destinatario?.direccion || order.delivery_address?.streetAddress || "—"}</p>
                               <p><span className="font-bold">C.P.:</span> {order.delivery_address?.zip_code || "—"} · {order.delivery_address?.municipality || ""}</p>
                               <p><span className="font-bold">Fecha:</span> {order.delivery_date} {order.delivery_address?.deliveryTime ? `· ${order.delivery_address.deliveryTime}` : ""}</p>
                               {order.delivery_address?.notes && (
