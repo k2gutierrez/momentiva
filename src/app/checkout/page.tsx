@@ -1,15 +1,16 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { cartItemsAtom, cartSubtotalAtom } from "@/store/cartStore";
 import { userProfileAtom } from "@/store/authStore";
 import Header from "@/components/Header";
 import { createClient } from "@/lib/supabase/client";
 import { processCheckoutOrder, validateCoupon } from "@/actions/checkout";
-import { MapPinIcon, CalendarBlankIcon, TicketIcon, CheckCircleIcon, ArrowLeftIcon, CreditCardIcon } from "@phosphor-icons/react/dist/ssr";
+import { MapPinIcon, CalendarBlankIcon, TicketIcon, CheckCircleIcon, ArrowLeftIcon, CreditCardIcon, WarningIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { toast } from "sonner";
+import { formatearEntrega, unificarEntrega } from "@/lib/entrega";
 
 interface DeliveryZone {
   id: string;
@@ -30,10 +31,13 @@ export default function CheckoutPage() {
   const [checkingZip, setCheckingZip] = useState(false);
   const [zipError, setZipError] = useState("");
 
-  // Dates (prellenados desde el carrito si ya eligieron en la página del producto)
+  // Dates: no se eligen aquí, se calculan a partir de lo que se eligió en cada
+  // producto. Un pedido se entrega en UNA sola fecha: gana la más lejana.
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
-  const [deliveryDate, setDeliveryDate] = useState(() => cart[0]?.deliveryDate || "");
-  const [deliveryTime, setDeliveryTime] = useState(() => cart[0]?.deliveryTime || "");
+  const [infoProductos, setInfoProductos] = useState<
+    Record<string, { anticipationDays: number } | undefined>
+  >({});
+  const [aceptaCambio, setAceptaCambio] = useState(false);
 
   // Coupon state
   const [couponInput, setCouponInput] = useState("");
@@ -61,6 +65,49 @@ export default function CheckoutPage() {
     };
     fetchBlockedDates();
   }, []);
+
+  // Anticipación de cada producto del carrito: hace falta para saber si alguno es
+  // de entrega inmediata y para unificar la fecha de entrega del pedido.
+  const idsProductos = cart
+    .map((i) => i.productId)
+    .filter(Boolean)
+    .sort()
+    .join(",");
+
+  useEffect(() => {
+    const fetchAnticipacion = async () => {
+      if (!idsProductos) return;
+      const supabase = createClient();
+      const { data } = await supabase
+        .from("products")
+        .select("id, anticipation_days")
+        .in("id", idsProductos.split(","));
+      if (!data) return;
+      const mapa: Record<string, { anticipationDays: number }> = {};
+      data.forEach((p) => {
+        mapa[p.id] = { anticipationDays: Number(p.anticipation_days) || 0 };
+      });
+      setInfoProductos(mapa);
+    };
+    fetchAnticipacion();
+  }, [idsProductos]);
+
+  // Fecha y horario finales del pedido (calculados, no elegidos aquí)
+  const entrega = useMemo(
+    () => unificarEntrega(cart, infoProductos),
+    [cart, infoProductos]
+  );
+  const deliveryDate = entrega.fecha;
+  const deliveryTime = entrega.hora;
+  const fechaBloqueada = Boolean(deliveryDate) && blockedDates.includes(deliveryDate);
+  const faltaInfoProductos = cart.some((i) => !infoProductos[i.productId]);
+  const puedePagar =
+    Boolean(deliveryZone) &&
+    Boolean(deliveryDate) &&
+    Boolean(deliveryTime) &&
+    !fechaBloqueada &&
+    entrega.sinFecha.length === 0 &&
+    (!entrega.requiereAceptacion || aceptaCambio);
 
   // Validate Zip Code against delivery_zones table
   const handleCheckZip = async () => {
@@ -115,18 +162,32 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (entrega.sinFecha.length > 0) {
+      toast.error(
+        `Falta elegir la fecha de entrega de: ${entrega.sinFecha.join(", ")}. Vuelve a ese producto para elegirla.`
+      );
+      return;
+    }
+
     if (!deliveryDate) {
-      toast.error("Por favor selecciona una fecha de entrega.");
+      toast.error("Falta la fecha de entrega de tus productos.");
       return;
     }
 
     if (blockedDates.includes(deliveryDate)) {
-      toast.error("La fecha seleccionada no está disponible para entregas.");
+      toast.error(
+        "La fecha de entrega de tus productos no está disponible. Vuelve al producto y elige otra."
+      );
       return;
     }
 
     if (!deliveryTime) {
-      toast.error("Por favor selecciona un horario de entrega.");
+      toast.error("Falta el horario de entrega de tus productos.");
+      return;
+    }
+
+    if (entrega.requiereAceptacion && !aceptaCambio) {
+      toast.error("Marca la casilla para aceptar la fecha de entrega del pedido.");
       return;
     }
 
@@ -148,6 +209,13 @@ export default function CheckoutPage() {
         municipality: deliveryZone.municipality,
         zoneName: deliveryZone.municipality,
         deliveryTime,
+        // Fechas que había elegido el cliente en cada producto. Sirve para que en
+        // el panel se vea de dónde salió la fecha unificada del pedido.
+        fechasPorProducto: entrega.detalle.map((d) => ({
+          name: d.nombre,
+          fecha: d.fecha,
+          hora: d.hora || undefined,
+        })),
       },
       deliveryDate,
       couponCode: appliedCoupon || undefined,
@@ -325,44 +393,90 @@ export default function CheckoutPage() {
                 />
               </div>
 
+              {/* Fecha y horario de entrega: se calculan a partir de lo elegido en
+                  cada producto. Ya no se eligen aquí (era un duplicado). */}
               <div>
-                <label className="block text-sm font-bold text-berenjena mb-1">Fecha de Entrega Deseada</label>
-                <input
-                  type="date"
-                  required
-                  value={deliveryDate}
-                  min={new Date().toISOString().split("T")[0]}
-                  onChange={(e) => setDeliveryDate(e.target.value)}
-                  className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-cream/30 text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
-                />
-                {blockedDates.includes(deliveryDate) && (
-                  <p className="text-xs font-bold text-red-500 mt-1">
-                    Esta fecha no está disponible para entregas. Por favor elige otro día.
+                <label className="block text-sm font-bold text-berenjena mb-1">
+                  Fecha y horario de entrega
+                </label>
+
+                {entrega.sinFecha.length > 0 ? (
+                  <div className="rounded-xl border-2 border-red-400 bg-red-50 p-4">
+                    <p className="text-sm font-bold text-red-700 flex items-center gap-2">
+                      <WarningIcon size={18} weight="bold" /> Falta la fecha de entrega
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">
+                      Estos productos no tienen fecha elegida:{" "}
+                      <span className="font-bold">{entrega.sinFecha.join(", ")}</span>.
+                      Abre cada uno y elige su fecha para poder continuar.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-lilaPastel bg-cream/30 p-4">
+                    <p className="text-base font-bold text-berenjena">
+                      🚚 {formatearEntrega(deliveryDate, deliveryTime)}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {entrega.detalle.length > 1
+                        ? "Es la fecha más lejana de tus productos, para poder entregarlos todos juntos."
+                        : "Elegida en la página del producto. Si quieres cambiarla, vuelve a ese producto."}
+                    </p>
+                  </div>
+                )}
+
+                {fechaBloqueada && (
+                  <p className="text-xs font-bold text-red-500 mt-2">
+                    Esa fecha ya no está disponible para entregas. Vuelve al producto y elige otra.
                   </p>
                 )}
-              </div>
 
-              <div>
-                <label className="block text-sm font-bold text-berenjena mb-1">Horario de Entrega</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    { value: "9:00 - 13:00", label: "9:00 am – 1:00 pm" },
-                    { value: "13:00 - 18:00", label: "1:00 pm – 6:00 pm" },
-                  ].map((slot) => (
-                    <button
-                      key={slot.value}
-                      type="button"
-                      onClick={() => setDeliveryTime(slot.value)}
-                      className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                        deliveryTime === slot.value
-                          ? "bg-terracota text-white shadow-md"
-                          : "bg-cream/30 text-berenjena border border-lilaPastel hover:border-terracota"
-                      }`}
-                    >
-                      {slot.label}
-                    </button>
-                  ))}
-                </div>
+                {/* Aviso cuando los productos no coinciden: fecha más lejana */}
+                {entrega.requiereAceptacion && (
+                  <div className="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 p-4">
+                    <p className="text-sm font-bold text-amber-900 flex items-center gap-2">
+                      <WarningIcon size={20} weight="bold" /> Tus productos no coinciden en la entrega
+                    </p>
+
+                    <ul className="mt-2 space-y-1">
+                      {entrega.detalle.map((d, i) => (
+                        <li key={i} className="text-xs text-amber-900">
+                          • <span className="font-bold">{d.nombre}</span>:{" "}
+                          {formatearEntrega(d.fecha, d.hora)}
+                          {d.inmediato && (
+                            <span className="font-bold"> (entrega inmediata)</span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+
+                    <p className="text-sm text-amber-900 mt-3">
+                      Para entregarlo <span className="font-bold">todo junto</span>, se usará la
+                      fecha más lejana:{" "}
+                      <span className="font-bold">{formatearEntrega(deliveryDate, deliveryTime)}</span>.
+                    </p>
+
+                    {entrega.mezclaInmediata && (
+                      <p className="text-xs text-amber-900 mt-2">
+                        Ojo: incluye un producto de <span className="font-bold">entrega inmediata</span>,
+                        así que con esta fecha dejará de ser inmediato. Si lo necesitas antes, hazlo
+                        en un pedido aparte.
+                      </p>
+                    )}
+
+                    <label className="mt-3 flex items-start gap-3 rounded-lg bg-white border border-amber-300 p-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={aceptaCambio}
+                        onChange={(e) => setAceptaCambio(e.target.checked)}
+                        className="mt-0.5 w-5 h-5 accent-terracota shrink-0"
+                      />
+                      <span className="text-sm font-bold text-amber-900">
+                        Acepto que mi pedido se entregue el{" "}
+                        {formatearEntrega(deliveryDate, deliveryTime)}
+                      </span>
+                    </label>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -480,10 +594,24 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
+              {!puedePagar && (
+                <p className="text-xs font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg p-3">
+                  {!deliveryZone
+                    ? "Valida tu código postal para continuar."
+                    : entrega.sinFecha.length > 0
+                      ? `Falta elegir la fecha de entrega de: ${entrega.sinFecha.join(", ")}`
+                      : fechaBloqueada
+                        ? "La fecha de entrega no está disponible: vuelve al producto y elige otra."
+                        : entrega.requiereAceptacion && !aceptaCambio
+                          ? "Marca la casilla para aceptar la fecha de entrega del pedido."
+                          : "Revisa los datos del pedido para continuar."}
+                </p>
+              )}
+
               <button
                 form="checkout-form"
                 type="submit"
-                disabled={isSubmitting || !deliveryZone}
+                disabled={isSubmitting || !puedePagar}
                 className="w-full flex items-center justify-center gap-2 bg-terracota hover:bg-opacity-90 disabled:opacity-50 text-white font-bold py-4 rounded-xl shadow-lg transition-transform hover:scale-[1.02]"
               >
                 <CreditCardIcon size={22} weight="bold" />

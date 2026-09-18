@@ -4,12 +4,16 @@ import React, { useEffect, useMemo, useState } from "react";
 import { DayPicker } from "react-day-picker";
 import { es } from "react-day-picker/locale";
 import "react-day-picker/style.css";
-import { CalendarBlankIcon, ClockIcon } from "@phosphor-icons/react/dist/ssr";
-
-const TIME_SLOTS = [
-  { value: "9:00 - 13:00", label: "9:00 am – 1:00 pm" },
-  { value: "13:00 - 18:00", label: "1:00 pm – 6:00 pm" },
-];
+import { CalendarBlankIcon, ClockIcon, InfoIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  HORA_CORTE_INMEDIATA,
+  HORARIOS,
+  aIso,
+  deIso,
+  esInmediato,
+  horariosDelDia,
+  primerDiaDisponible,
+} from "@/lib/entrega";
 
 interface DeliveryDateTimePickerProps {
   anticipationDays: number;
@@ -18,20 +22,6 @@ interface DeliveryDateTimePickerProps {
   deliveryTime: string;
   onDateChange: (value: string) => void;
   onTimeChange: (value: string) => void;
-}
-
-// Fechas en horario LOCAL. Con toISOString() (UTC) el día se recorre después de
-// las 18:00 en México, y el cliente no podía elegir el día de hoy.
-function aIso(fecha: Date): string {
-  const y = fecha.getFullYear();
-  const m = String(fecha.getMonth() + 1).padStart(2, "0");
-  const d = String(fecha.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-}
-
-function deIso(iso: string): Date {
-  const [y, m, d] = iso.split("-").map(Number);
-  return new Date(y, (m || 1) - 1, d || 1);
 }
 
 export default function DeliveryDateTimePicker({
@@ -48,13 +38,15 @@ export default function DeliveryDateTimePicker({
   const [montado, setMontado] = useState(false);
   useEffect(() => setMontado(true), []);
 
-  // Primer día disponible = hoy + días de anticipación del producto (a medianoche local)
-  const fechaMinima = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    d.setDate(d.getDate() + (anticipationDays || 0));
-    return d;
-  }, [anticipationDays]);
+  const inmediato = esInmediato(anticipationDays);
+
+  // Primer día disponible: hoy + anticipación, o mañana si es inmediato y ya pasó
+  // la hora de corte (no da tiempo a prepararlo hoy).
+  const fechaMinima = useMemo(
+    () => primerDiaDisponible(anticipationDays),
+    [anticipationDays]
+  );
+  const minDateIso = aIso(fechaMinima);
 
   const bloqueadas = useMemo(
     () => new Set(blockedDates.filter(Boolean)),
@@ -71,9 +63,24 @@ export default function DeliveryDateTimePicker({
   const seleccionada = deliveryDate ? deIso(deliveryDate) : undefined;
   const esBloqueada = Boolean(deliveryDate) && bloqueadas.has(deliveryDate);
 
-  // Abrimos el calendario en el mes de la fecha elegida (o en el primer día disponible)
+  // Horarios válidos para la fecha elegida: en entrega inmediata pedida por la
+  // mañana, el horario de la mañana de hoy queda bloqueado.
+  const horariosValidos = useMemo(
+    () => (deliveryDate ? horariosDelDia(anticipationDays, deliveryDate) : []),
+    [anticipationDays, deliveryDate]
+  );
+
+  // Si el horario elegido deja de ser válido (p. ej. cambió la fecha), se limpia
+  useEffect(() => {
+    if (deliveryTime && horariosValidos.length > 0 && !horariosValidos.includes(deliveryTime)) {
+      onTimeChange("");
+    }
+  }, [deliveryTime, horariosValidos, onTimeChange]);
+
   const mesInicial = seleccionada ?? fechaMinima;
   const finDeRango = new Date(fechaMinima.getFullYear(), fechaMinima.getMonth() + 6, 1);
+  const bloqueaMananaDeHoy =
+    inmediato && Boolean(deliveryDate) && deliveryDate === aIso(new Date()) && new Date().getHours() < HORA_CORTE_INMEDIATA;
 
   return (
     <div className="bg-white/70 p-4 rounded-2xl space-y-4">
@@ -83,6 +90,18 @@ export default function DeliveryDateTimePicker({
           Elige tu fecha y horario de entrega
         </h4>
       </div>
+
+      {inmediato && (
+        <div className="flex items-start gap-2 rounded-xl bg-sage/15 border border-sage/40 p-3">
+          <InfoIcon size={18} weight="bold" className="text-sage mt-0.5 shrink-0" />
+          <p className="text-xs text-[#3A243F] leading-relaxed">
+            <span className="font-bold">Este producto es de entrega inmediata.</span>{" "}
+            {new Date().getHours() < HORA_CORTE_INMEDIATA
+              ? "Si lo pides ahora, se entrega hoy por la tarde (el horario de la mañana ya no alcanza)."
+              : `Los pedidos después de la 1:00 pm se entregan a partir del día siguiente.`}
+          </p>
+        </div>
+      )}
 
       {/* Calendario: los días no disponibles se ven atenuados y tachados */}
       <div>
@@ -121,7 +140,7 @@ export default function DeliveryDateTimePicker({
           </p>
         )}
 
-        {montado && anticipationDays > 0 && (
+        {montado && !inmediato && anticipationDays > 0 && (
           <p className="text-xs text-gray-500 mt-1">
             Este producto se prepara con {anticipationDays} día(s) de anticipación,
             por eso el calendario inicia el{" "}
@@ -141,22 +160,37 @@ export default function DeliveryDateTimePicker({
           Horario de entrega <span className="text-terracota">*</span>
         </label>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {TIME_SLOTS.map((slot) => (
-            <button
-              key={slot.value}
-              type="button"
-              onClick={() => onTimeChange(slot.value)}
-              className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-                deliveryTime === slot.value
-                  ? "bg-terracota text-white shadow-md"
-                  : "bg-white text-[#3A243F] border border-lilaPastel hover:border-terracota"
-              }`}
-            >
-              <ClockIcon size={16} weight="bold" />
-              {slot.label}
-            </button>
-          ))}
+          {HORARIOS.map((slot) => {
+            const disponible = horariosValidos.includes(slot.value);
+            return (
+              <button
+                key={slot.value}
+                type="button"
+                disabled={!disponible}
+                onClick={() => onTimeChange(slot.value)}
+                className={`flex items-center justify-center gap-2 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                  deliveryTime === slot.value
+                    ? "bg-terracota text-white shadow-md"
+                    : disponible
+                      ? "bg-white text-[#3A243F] border border-lilaPastel hover:border-terracota"
+                      : "bg-cream/60 text-gray-400 border border-dashed border-lilaPastel cursor-not-allowed line-through"
+                }`}
+              >
+                <ClockIcon size={16} weight="bold" />
+                {slot.label}
+              </button>
+            );
+          })}
         </div>
+        {bloqueaMananaDeHoy && (
+          <p className="text-xs text-gray-500 mt-2">
+            El horario de la mañana de hoy ya no está disponible para entrega inmediata.
+            Puedes elegir la tarde de hoy o cualquier horario de otro día.
+          </p>
+        )}
+        {!deliveryDate && (
+          <p className="text-xs text-gray-500 mt-2">Primero elige una fecha.</p>
+        )}
       </div>
 
       <p className="text-xs text-gray-500">

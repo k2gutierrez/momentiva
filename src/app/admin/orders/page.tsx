@@ -37,6 +37,8 @@ interface OrderRow {
     streetAddress?: string;
     notes?: string;
     zip_code?: string;
+    /** Fecha y hora que había elegido el cliente en cada producto del carrito. */
+    fechasPorProducto?: { name: string; fecha: string; hora?: string }[];
   } | null;
   order_items:
     | {
@@ -332,6 +334,21 @@ export default function AdminOrdersPage() {
                               {order.delivery_address?.notes && (
                                 <p><span className="font-bold">Referencias de la ubicación:</span> {order.delivery_address.notes}</p>
                               )}
+                              {Array.isArray(order.delivery_address?.fechasPorProducto) &&
+                                new Set(
+                                  order.delivery_address.fechasPorProducto.map((f) => f.fecha)
+                                ).size > 1 && (
+                                  <div className="mt-2 rounded-lg bg-amber-50 border border-amber-300 p-2">
+                                    <p className="text-xs font-bold text-amber-900">
+                                      ⚠️ Los productos pedían fechas distintas; se unificó a la más lejana.
+                                    </p>
+                                    {order.delivery_address.fechasPorProducto.map((f, i) => (
+                                      <p key={i} className="text-xs text-amber-900">
+                                        • {f.name}: {f.fecha} {f.hora ? `· ${f.hora}` : ""}
+                                      </p>
+                                    ))}
+                                  </div>
+                                )}
                             </div>
                           </div>
                         </div>

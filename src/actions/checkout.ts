@@ -15,6 +15,8 @@ export interface CheckoutDeliveryAddress {
   municipality?: string;
   zoneName?: string;
   deliveryTime?: string;
+  /** Fecha y hora que había elegido el cliente en cada producto del carrito. */
+  fechasPorProducto?: { name: string; fecha: string; hora?: string }[];
 }
 
 // Bucket PRIVADO donde viven las fotos que sube el cliente (fotos de personas).
