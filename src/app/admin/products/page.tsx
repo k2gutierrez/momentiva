@@ -37,7 +37,8 @@ export default function AdminProductsPage() {
     const supabase = createClient();
     const { data } = await supabase
       .from("products")
-      .select("*")
+      // Columnas explícitas: `raw_cost` (costo interno) no es legible por usuarios
+      .select("id, name, slug, description, price, images, category_id, custom_options, is_in_stock_item, stock_quantity, anticipation_days, is_custom_cup, is_active, created_at")
       .order("created_at", { ascending: false });
 
     return data ?? [];

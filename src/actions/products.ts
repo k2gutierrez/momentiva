@@ -1,10 +1,26 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { marcaTiempoDeSlug, slugDeProducto, slugify } from "@/lib/slug";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
 import { extensionImagenSegura } from "@/lib/archivos";
+
+/**
+ * Devuelve el producto COMPLETO (incluye `raw_cost`) para el formulario de edición.
+ *
+ * Se lee con la llave de servicio a propósito: el costo interno está oculto para
+ * cualquier usuario (incluso autenticado), así que el panel no puede leerlo desde
+ * el navegador.
+ */
+export async function obtenerProductoParaEditar(id: string) {
+  await requireAdmin();
+  const admin = createAdminClient() ?? (await createClient());
+  const { data, error } = await admin.from("products").select("*").eq("id", id).single();
+  if (error) throw new Error(error.message);
+  return data;
+}
 
 export async function createProduct(formData: FormData) {
   // Autorización en el servidor: el proxy de /admin NO protege las actions
@@ -224,7 +240,9 @@ export async function duplicateProduct(id: string) {
   const supabase = await createClient();
 
   try {
-    const { data: original, error } = await supabase
+    // El costo interno solo lo ve el servidor: se lee con la llave de servicio
+    const lectura = createAdminClient() ?? supabase;
+    const { data: original, error } = await lectura
       .from("products")
       .select("*")
       .eq("id", id)

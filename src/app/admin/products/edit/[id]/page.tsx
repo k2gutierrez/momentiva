@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeftIcon, FloppyDiskIcon, PlusIcon, TrashIcon, ImageIcon } from "@phosphor-icons/react/dist/ssr";
-import { updateProduct } from "@/actions/products";
+import { obtenerProductoParaEditar, updateProduct } from "@/actions/products";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 
@@ -54,10 +54,16 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const { data: cats } = await supabase.from("categories").select("id, name").order("name", { ascending: true });
       if (cats) setCategories(cats as Category[]);
 
-      // Cargar producto
-      const { data: product, error } = await supabase.from("products").select("*").eq("id", id).single();
+      // Cargar producto (con el costo interno) mediante una acción de servidor,
+      // porque `raw_cost` ya no es legible desde el navegador ni siendo admin.
+      let product: Record<string, any> | null = null;
+      try {
+        product = await obtenerProductoParaEditar(id);
+      } catch {
+        product = null;
+      }
 
-      if (error || !product) {
+      if (!product) {
         toast.error("Producto no encontrado");
         router.push("/admin/products");
         return;
