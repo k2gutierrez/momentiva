@@ -77,6 +77,9 @@ order by table_name, grantee;
 
 ## Archivos
 
-| Archivo | Qué contiene |
-|---|---|
-| `20260918000001_endurecimiento_pedidos_y_productos.sql` | El endurecimiento aplicado el 17-18 de septiembre: cierra pedidos e items a lectura pública y oculta `raw_cost` a los visitantes. |
+| Archivo | Qué contiene | Estado |
+|---|---|---|
+| `20260918000001_endurecimiento_pedidos_y_productos.sql` | Cierra pedidos e items a lectura pública y oculta `raw_cost` a los visitantes anónimos. | ✅ aplicado |
+| `20260918000002_politicas_linea_base.sql` | **Línea base**: todas las políticas RLS tal como estaban el 18-sep (documentación, no hace falta ejecutarlo). | ✅ documentado |
+| `20260918000003_fix_escalada_admin_profiles.sql` | **Crítico**: impedía que un cliente registrado se hiciera administrador. Incluye higiene de permisos (TRUNCATE/REFERENCES/TRIGGER). | ✅ aplicado |
+| `20260918000004_ocultar_costo_interno.sql` | Oculta `raw_cost` (costo interno) también a los usuarios registrados. | ⏳ por aplicar |
