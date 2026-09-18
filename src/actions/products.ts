@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { marcaTiempoDeSlug, slugDeProducto, slugify } from "@/lib/slug";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { extensionImagenSegura } from "@/lib/archivos";
 
 export async function createProduct(formData: FormData) {
   // Autorización en el servidor: el proxy de /admin NO protege las actions
@@ -37,7 +38,8 @@ export async function createProduct(formData: FormData) {
       if (imageFile.size > 5 * 1024 * 1024) {
         throw new Error(`"${imageFile.name}" pesa más de 5MB. Por favor, comprímela.`);
       }
-      const fileExt = imageFile.name.split(".").pop() || "jpg";
+      // Se valida el contenido real del archivo, no la extensión del nombre
+      const fileExt = await extensionImagenSegura(imageFile);
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `public/${fileName}`;
 
@@ -120,7 +122,8 @@ export async function updateProduct(id: string, formData: FormData) {
       if (imageFile.size > 5 * 1024 * 1024) {
         throw new Error(`"${imageFile.name}" pesa más de 5MB. Por favor, comprímela.`);
       }
-      const fileExt = imageFile.name.split(".").pop() || "jpg";
+      // Se valida el contenido real del archivo, no la extensión del nombre
+      const fileExt = await extensionImagenSegura(imageFile);
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `public/${fileName}`;
 

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { extensionImagenSegura } from "@/lib/archivos";
 
 export async function createCarouselSlide(formData: FormData) {
   // Autorización en el servidor: el proxy de /admin NO protege las actions
@@ -26,7 +27,8 @@ export async function createCarouselSlide(formData: FormData) {
       if (file.size > 5 * 1024 * 1024) {
         throw new Error(`"${file.name}" pesa más de 5MB. Por favor, comprímela o expórtala en menor resolución.`);
       }
-      const fileExt = file.name.split(".").pop() || "png";
+      // Se valida el contenido real: los banners son SVG/PNG/WebP según el diseño
+      const fileExt = await extensionImagenSegura(file, { permitirSvg: true });
       const fileName = `${prefix}-${Date.now()}.${fileExt}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("product-images")
@@ -120,7 +122,8 @@ export async function updateCarouselSlideImages(id: string, formData: FormData) 
       if (file.size > 5 * 1024 * 1024) {
         throw new Error(`"${file.name}" pesa más de 5MB. Por favor, comprímela o expórtala en menor resolución.`);
       }
-      const fileExt = file.name.split(".").pop() || "png";
+      // Se valida el contenido real: los banners son SVG/PNG/WebP según el diseño
+      const fileExt = await extensionImagenSegura(file, { permitirSvg: true });
       const fileName = `${prefix}-${Date.now()}.${fileExt}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("product-images")

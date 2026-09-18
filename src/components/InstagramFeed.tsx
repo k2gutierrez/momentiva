@@ -15,6 +15,12 @@ interface InstaPost {
 // (Graph API de Meta); si no hay token, se usa el feed manual del admin.
 // Opcional: si se configura NEXT_PUBLIC_SOCIABLEKIT_EMBED_ID, se muestra el
 // widget de SociableKit en lugar del feed propio.
+/** Solo se permiten enlaces http(s): evita `javascript:` u otros esquemas. */
+function urlSegura(valor: unknown): string | undefined {
+  const texto = String(valor ?? "");
+  return /^https?:\/\//i.test(texto) ? texto : undefined;
+}
+
 export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
   const [showAll, setShowAll] = useState(false);
   const sociableEmbedId = process.env.NEXT_PUBLIC_SOCIABLEKIT_EMBED_ID || "";
@@ -82,7 +88,7 @@ export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
             {displayedPosts.map((post) => (
               <a
                 key={post.id}
-                href={post.post_url}
+                href={urlSegura(post.post_url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="relative aspect-square bg-cream group overflow-hidden cursor-pointer"

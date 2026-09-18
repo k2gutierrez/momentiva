@@ -3,6 +3,10 @@ import type { NextConfig } from "next";
 // Cabeceras de seguridad. La CSP va en modo "Report-Only" a propósito: el sitio
 // carga Mercado Pago, Supabase, Instagram y (opcionalmente) SociableKit, así que
 // primero se vigilan las violaciones en la consola y después se aplica.
+// CSP mínima que ya se APLICA: solo directivas que no pueden romper el sitio.
+// La política completa va en Report-Only hasta revisar la consola unos días.
+const cspAplicada = ["frame-ancestors 'none'", "base-uri 'self'", "object-src 'none'"].join("; ");
+
 const csp = [
   "default-src 'self'",
   "img-src 'self' data: blob: https:",
@@ -47,6 +51,7 @@ const nextConfig: NextConfig = {
             key: "Strict-Transport-Security",
             value: "max-age=31536000; includeSubDomains",
           },
+          { key: "Content-Security-Policy", value: cspAplicada },
           { key: "Content-Security-Policy-Report-Only", value: csp },
         ],
       },

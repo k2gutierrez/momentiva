@@ -14,8 +14,16 @@ type OrderStatus = 'placed' | 'work_in_progress' | 'finish' | 'delivered';
  * dentro del pedido, así que se siguen mostrando tal cual (compatibilidad).
  */
 function urlFoto(valor: string, descargar = false): string {
-  const esRutaPrivada = !valor.startsWith("data:") && !valor.startsWith("http");
-  if (!esRutaPrivada) return valor;
+  // Base64 de pedidos antiguos
+  if (valor.startsWith("data:image/")) return valor;
+
+  // Solo se permiten enlaces de nuestro propio almacenamiento: así el navegador
+  // del administrador no carga recursos de dominios ajenos (fuga de IP/referrer).
+  if (/^https?:\/\//i.test(valor)) {
+    return valor.includes(".supabase.co/") ? valor : "";
+  }
+
+  // Ruta dentro del bucket privado -> se sirve por la ruta protegida
   return `/admin/pedidos/foto?ruta=${encodeURIComponent(valor)}${descargar ? "&descargar=1" : ""}`;
 }
 

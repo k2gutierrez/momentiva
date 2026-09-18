@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { extensionImagenSegura } from "@/lib/archivos";
 
 export async function createInstagramPost(formData: FormData) {
   // Autorización en el servidor: el proxy de /admin NO protege las actions
@@ -24,7 +25,7 @@ export async function createInstagramPost(formData: FormData) {
     }
 
     // Usaremos el mismo bucket "product-images" para mantenerlo simple
-    const fileExt = imageFile.name.split(".").pop();
+    const fileExt = await extensionImagenSegura(imageFile);
     const fileName = `insta-${Date.now()}.${fileExt}`;
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from("product-images")

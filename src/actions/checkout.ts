@@ -6,6 +6,8 @@ import { revalidatePath } from "next/cache";
 import type { CartItem } from "@/store/cartStore";
 import { createPaymentPreference, getPaymentInfo } from "@/lib/mercadopago";
 import { randomUUID } from "node:crypto";
+import { headers } from "next/headers";
+import { ipDelVisitante, limitarIntentos } from "@/lib/rateLimit";
 
 export interface CheckoutDeliveryAddress {
   fullName: string;
@@ -116,6 +118,14 @@ export async function processCheckoutOrder(orderData: {
   const supabase = await createClient();
 
   try {
+    // Límite de intentos por IP: cada llamada crea un pedido, una preferencia de
+    // Mercado Pago, sube fotos y manda notificaciones.
+    const ip = ipDelVisitante(await headers());
+    const limite = limitarIntentos(`checkout:${ip}`, 10, 60_000);
+    if (!limite.permitido) {
+      throw new Error(limite.mensaje || "Demasiados intentos. Inténtalo más tarde.");
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
 
     // Si hay cupón aplicado, buscamos su id en la tabla discounts
@@ -536,6 +546,15 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
 // Se lee con SERVICE ROLE para poder cerrar la lectura pública de cupones
 // (así nadie puede enumerar códigos desde el navegador).
 export async function validateCoupon(code: string, subtotal: number) {
+  // Un solo mensaje para todos los casos: así no se pueden enumerar cupones.
+  const GENERICO = "Código de cupón inválido o expirado";
+
+  const ip = ipDelVisitante(await headers());
+  const limite = limitarIntentos(`cupon:${ip}`, 8, 60_000);
+  if (!limite.permitido) {
+    return { valid: false, error: limite.mensaje };
+  }
+
   const supabase = createAdminClient() ?? (await createClient());
 
   const { data: coupon, error } = await supabase
@@ -546,15 +565,15 @@ export async function validateCoupon(code: string, subtotal: number) {
     .single();
 
   if (error || !coupon) {
-    return { valid: false, error: "Código de cupón inválido o expirado" };
+    return { valid: false, error: GENERICO };
   }
 
   if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-    return { valid: false, error: "Este cupón ha expirado" };
+    return { valid: false, error: GENERICO };
   }
 
   if (coupon.usage_limit && coupon.used_count && coupon.used_count >= coupon.usage_limit) {
-    return { valid: false, error: "Este cupón ya alcanzó su límite de usos" };
+    return { valid: false, error: GENERICO };
   }
 
   let discount = 0;
