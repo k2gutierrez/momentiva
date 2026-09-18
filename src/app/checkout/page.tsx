@@ -366,12 +366,15 @@ export default function CheckoutPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-bold text-berenjena mb-1">Notas Especiales / Dedicatoria</label>
+                <label className="block text-sm font-bold text-berenjena mb-1">
+                  Referencias de la ubicación{" "}
+                  <span className="font-normal text-gray-400">(opcional)</span>
+                </label>
                 <textarea
                   rows={3}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Mensaje para la tarjeta de regalo o instrucciones de entrega..."
+                  placeholder="Ej. portón negro, timbre 2, dejar en recepción, preguntar por..."
                   className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-cream/30 text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
                 ></textarea>
               </div>

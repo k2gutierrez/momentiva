@@ -113,7 +113,7 @@ export default async function TiendaPage({
 
           {/* Grid de Productos */}
           {products && products.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
               {products.map((product) => (
                 <Link
                   href={`/product/${product.slug}`}
@@ -121,7 +121,7 @@ export default async function TiendaPage({
                   className="group flex flex-col bg-white overflow-hidden transition-all duration-300 hover:-translate-y-1 rounded-2xl shadow-sm hover:shadow-xl pb-2"
                 >
                   {/* Imagen del Producto */}
-                  <div className="relative h-64 md:h-72 bg-cream overflow-hidden rounded-t-2xl">
+                  <div className="relative h-40 sm:h-56 md:h-72 bg-cream overflow-hidden rounded-t-2xl">
                     {product.images && product.images.length > 0 ? (
                       <img
                         src={product.images[0]}
@@ -136,23 +136,23 @@ export default async function TiendaPage({
                     
                     {/* Badge de Stock/Envío (Opcional) */}
                     {product.is_in_stock_item && (
-                      <div className="absolute top-3 right-3 bg-sage text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full shadow-sm">
+                      <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-sage text-white text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm">
                         Envío Hoy
                       </div>
                     )}
                   </div>
 
                   {/* Info del Producto */}
-                  <div className="p-5 flex flex-col flex-1 text-center">
-                    <h4 className="text-base font-bold text-[#3A243F] mb-2 leading-tight group-hover:text-terracota transition-colors">
+                  <div className="p-3 sm:p-5 flex flex-col flex-1 text-center">
+                    <h4 className="text-sm sm:text-base font-bold text-[#3A243F] mb-2 leading-tight group-hover:text-terracota transition-colors">
                       {product.name}
                     </h4>
-                    <p className="text-terracota font-bold text-xl mb-4 mt-auto">
+                    <p className="text-terracota font-bold text-lg sm:text-xl mb-3 sm:mb-4 mt-auto">
                       ${product.price.toFixed(2)} <span className="text-xs text-gray-400 font-normal">MXN</span>
                     </p>
                     
                     {/* Fake Button for visual weight */}
-                    <div className="w-full bg-[#F5EFF6] text-[#3A243F] text-sm font-bold py-2.5 rounded-lg group-hover:bg-terracota group-hover:text-white transition-colors flex items-center justify-center gap-2">
+                    <div className="w-full bg-[#F5EFF6] text-[#3A243F] text-xs sm:text-sm font-bold py-2 sm:py-2.5 rounded-lg group-hover:bg-terracota group-hover:text-white transition-colors flex items-center justify-center gap-1.5 sm:gap-2">
                       Ver detalle <ArrowRightIcon size={16} weight="bold" />
                     </div>
                   </div>

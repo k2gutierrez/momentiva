@@ -81,66 +81,42 @@ export default function HeroCarousel({ slides }: { slides: CarouselSlide[] }) {
               index === currentIndex ? "opacity-100 z-10" : "opacity-0 z-0 pointer-events-none"
             }`}
           >
-            {/* Background Image (móvil y escritorio) */}
-            {slide.mobile_image_url ? (
-              <>
-                {/* Imagen para celular */}
-                <img
-                  src={slide.mobile_image_url}
-                  alt={slide.title || "Banner Momentiva"}
-                  className="w-full h-full object-cover md:hidden"
-                />
-                {/* Imagen para escritorio */}
-                <img
-                  src={slide.image_url}
-                  alt={slide.title || "Banner Momentiva"}
-                  className="hidden md:block w-full h-full object-cover"
-                />
-              </>
-            ) : (
+            {/* Background Image: <picture> para que el celular NO descargue
+                también el banner de escritorio (antes bajaba los dos) */}
+            <picture>
+              {slide.mobile_image_url && (
+                <source media="(max-width: 767px)" srcSet={slide.mobile_image_url} />
+              )}
               <img
                 src={slide.image_url}
                 alt={slide.title || "Banner Momentiva"}
                 className="w-full h-full object-cover"
+                loading={index === 0 ? "eager" : "lazy"}
+                fetchPriority={index === 0 ? "high" : "auto"}
               />
-            )}
-            <div className="absolute inset-0"></div>
-
-            {/* Slide Content Overlay */}
-            <div className="absolute inset-0 max-w-7xl mx-auto px-8 flex items-end mb-10">
-              <div className="max-w-xl space-y-6 text-left">
-                {/*slide.title && (
-                  <span className="inline-block bg-terracota/30 text-lilaPastel border border-terracota/40 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
-                    {slide.title}
-                  </span>
-                )*/}
-                {/*<h2 className="text-4xl md:text-6xl font-bold tracking-tight text-cream leading-tight">
-                  Cada regalo, un{" "}
-                  <span className="text-lilaPastel font-handwriting text-5xl md:text-7xl block mt-1">
-                    momento inolvidable
-                  </span>
-                </h2>
-                <p className="text-base md:text-lg text-lilaPastel/90 leading-relaxed drop-shadow">
-                  Sorprende con productos hechos a la medida, entregados directo en Guadalajara, Zapopan y Tlajomulco.
-                </p>*/}
-                <div className="flex flex-wrap gap-4 pt-2">
-                  <a
-                    href="#catalog"
-                    className="bg-terracota hover:bg-opacity-90 text-white font-bold px-8 py-4 rounded-full shadow-xl transition-transform hover:scale-105"
-                  >
-                    Explorar catálogo
-                  </a>
-                  <a
-                    href="/tienda?categoria=personalizados"
-                    className="bg-[#3B2142] hover:bg-[#2A1730] text-white font-bold px-8 py-4 rounded-full shadow-xl transition-transform hover:scale-105"
-                  >
-                    Personalizar
-                  </a>
-                </div>
-              </div>
-            </div>
+            </picture>
           </div>
         ))}
+      </div>
+
+      {/* Botones del banner: UNA sola capa para todos los banners.
+          Antes cada banner pintaba los suyos y durante el fundido se veían
+          los dos encimados (el "se vio raro" de la captura). */}
+      <div className="absolute inset-0 max-w-7xl mx-auto px-4 sm:px-8 flex items-end mb-16 md:mb-10 z-20 pointer-events-none">
+        <div className="flex flex-wrap gap-3 sm:gap-4 pointer-events-auto">
+          <a
+            href="#catalog"
+            className="bg-terracota hover:bg-opacity-90 text-white font-bold text-sm sm:text-base px-5 py-3 sm:px-8 sm:py-4 rounded-full shadow-xl transition-transform hover:scale-105"
+          >
+            Explorar catálogo
+          </a>
+          <a
+            href="/tienda?categoria=personalizados"
+            className="bg-[#3B2142] hover:bg-[#2A1730] text-white font-bold text-sm sm:text-base px-5 py-3 sm:px-8 sm:py-4 rounded-full shadow-xl transition-transform hover:scale-105"
+          >
+            Personalizar
+          </a>
+        </div>
       </div>
 
       {/* Slide Navigation Controls */}

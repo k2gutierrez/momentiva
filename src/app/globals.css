@@ -20,3 +20,70 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ────────────────────────────────────────────────────────────────
+   Calendario de entrega (react-day-picker) con la paleta de la marca.
+   Se usa en la ficha de producto para mostrar los días bloqueados.
+   ──────────────────────────────────────────────────────────────── */
+.rdp-momentiva {
+  --rdp-accent-color: #c97b5f; /* terracota */
+  --rdp-accent-background-color: #f6e7e1;
+  --rdp-today-color: #3b2142; /* berenjena */
+  --rdp-day-height: 2.7rem;
+  --rdp-day-width: 2.7rem;
+  --rdp-day_button-height: 2.5rem;
+  --rdp-day_button-width: 2.5rem;
+  --rdp-selected-border: none;
+  --rdp-disabled-opacity: 0.25;
+  --rdp-outside-opacity: 0.35;
+  margin: 0;
+}
+.rdp-momentiva .rdp-month_caption {
+  font-weight: 700;
+  color: #3b2142;
+  font-size: 0.95rem;
+  text-transform: capitalize;
+}
+.rdp-momentiva .rdp-weekday {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: #6f6f6f;
+}
+.rdp-momentiva .rdp-day_button {
+  font-weight: 700;
+  color: #3a243f;
+}
+.rdp-momentiva .rdp-day_button:hover:not(:disabled) {
+  background-color: #ebe0ec;
+}
+.rdp-momentiva .rdp-selected .rdp-day_button {
+  background-color: #c97b5f;
+  color: #ffffff;
+}
+/* Los días no disponibles se ven tachados además de atenuados */
+.rdp-momentiva .rdp-disabled .rdp-day_button {
+  text-decoration: line-through;
+}
+.rdp-momentiva .rdp-button_previous,
+.rdp-momentiva .rdp-button_next {
+  color: #3b2142;
+  border: 1px solid #e7ddee;
+  border-radius: 9999px;
+}
+.rdp-momentiva .rdp-button_previous:hover,
+.rdp-momentiva .rdp-button_next:hover {
+  background-color: #ebe0ec;
+}
+/* En celulares angostos reducimos las celdas para que el mes quepa completo */
+@media (max-width: 420px) {
+  .rdp-momentiva {
+    --rdp-day-height: 2.15rem;
+    --rdp-day-width: 2.15rem;
+    --rdp-day_button-height: 2rem;
+    --rdp-day_button-width: 2rem;
+    font-size: 0.8rem;
+  }
+  .rdp-momentiva .rdp-weekday {
+    font-size: 0.62rem;
+  }
+}

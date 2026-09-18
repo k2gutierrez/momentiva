@@ -294,7 +294,7 @@ export default function AdminOrdersPage() {
                               <p><span className="font-bold">C.P.:</span> {order.delivery_address?.zip_code || "—"} · {order.delivery_address?.municipality || ""}</p>
                               <p><span className="font-bold">Fecha:</span> {order.delivery_date} {order.delivery_address?.deliveryTime ? `· ${order.delivery_address.deliveryTime}` : ""}</p>
                               {order.delivery_address?.notes && (
-                                <p><span className="font-bold">Notas / Dedicatoria:</span> {order.delivery_address.notes}</p>
+                                <p><span className="font-bold">Referencias de la ubicación:</span> {order.delivery_address.notes}</p>
                               )}
                             </div>
                           </div>
