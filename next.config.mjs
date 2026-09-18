@@ -1,12 +1,13 @@
-import type { NextConfig } from "next";
+/** @type {import('next').NextConfig} */
 
-// Cabeceras de seguridad. La CSP va en modo "Report-Only" a propósito: el sitio
-// carga Mercado Pago, Supabase, Instagram y (opcionalmente) SociableKit, así que
-// primero se vigilan las violaciones en la consola y después se aplica.
-// CSP mínima que ya se APLICA: solo directivas que no pueden romper el sitio.
-// La política completa va en Report-Only hasta revisar la consola unos días.
-const cspAplicada = ["frame-ancestors 'none'", "base-uri 'self'", "object-src 'none'"].join("; ");
+// Se usa .mjs (JavaScript) en lugar de .ts a propósito:
+// el servidor de Hostinger tiene una glibc antigua, el compilador nativo de Next
+// no carga y Next cae al compilador WASM, que no logra compilar next.config.ts
+// (error "Failed to load next.config.ts"). Un config en JS evita ese paso.
 
+// Cabeceras de seguridad. La CSP completa va en modo "Report-Only" a propósito:
+// el sitio carga Mercado Pago, Supabase e Instagram, así que primero se vigilan
+// las violaciones en la consola y después se aplica.
 const csp = [
   "default-src 'self'",
   "img-src 'self' data: blob: https:",
@@ -19,23 +20,27 @@ const csp = [
   "form-action 'self' https://www.mercadopago.com",
 ].join("; ");
 
-const nextConfig: NextConfig = {
+// CSP mínima que ya se APLICA: solo directivas que no pueden romper el sitio.
+const cspAplicada = ["frame-ancestors 'none'", "base-uri 'self'", "object-src 'none'"].join("; ");
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Permitir el origen del túnel Cloudflare para que el JS funcione al probar por HTTPS
   allowedDevOrigins: ["exposure-emacs-tonight-ultimate.trycloudflare.com"],
   // Le decimos a Next.js que acepte peticiones de hasta 10MB en Server Actions
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb',
+      bodySizeLimit: "10mb",
     },
   },
   images: {
     remotePatterns: [
       {
-        protocol: 'https',
-        hostname: 'mvsabrcqhpwenamlqcux.supabase.co',
-        port: '',
-      }
-    ]
+        protocol: "https",
+        hostname: "mvsabrcqhpwenamlqcux.supabase.co",
+        port: "",
+      },
+    ],
   },
   output: "standalone",
   async headers() {
@@ -47,10 +52,7 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=31536000; includeSubDomains",
-          },
+          { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
           { key: "Content-Security-Policy", value: cspAplicada },
           { key: "Content-Security-Policy-Report-Only", value: csp },
         ],
