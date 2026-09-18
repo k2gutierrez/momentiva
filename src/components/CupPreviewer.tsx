@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import { UploadSimpleIcon, ShoppingCartIcon } from "@phosphor-icons/react/dist/ssr";
 import { useSetAtom } from "jotai";
 import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { toast } from "sonner";
 import { comprimirImagen } from "@/lib/imagen";
+import type { AjusteTaza } from "./CupCanvas";
 
 // Deshabilitamos SSR para evitar errores con Konva en Next.js
 const CupCanvas = dynamic(() => import("./CupCanvas"), {
@@ -30,14 +31,31 @@ export interface ProductoTaza {
 export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
+  // Vista compuesta: cómo queda la foto dentro de la taza. Se genera sola cada
+  // vez que el cliente mueve, escala o gira la imagen.
+  const [vista, setVista] = useState<{ dataUrl: string; ajuste: AjusteTaza } | null>(null);
 
   const setCart = useSetAtom(cartItemsAtom);
   const setCartOpen = useSetAtom(cartOpenAtom);
+
+  const handleSnapshot = useCallback(
+    (dataUrl: string, ajuste: AjusteTaza) => setVista({ dataUrl, ajuste }),
+    []
+  );
 
   const handleAddCupToCart = () => {
     if (!imageSrc) {
       toast.error("Por favor sube una imagen primero");
       return;
+    }
+
+    // El diseño va en las opciones del artículo: el servidor sube la vista
+    // compuesta al bucket privado igual que la foto original.
+    const opciones: Record<string, string | string[]> = {};
+    if (vista) {
+      opciones["Diseño de taza"] = [vista.dataUrl];
+      opciones["Ajuste de la foto"] =
+        `posición ${vista.ajuste.x},${vista.ajuste.y} · escala ${Math.round(vista.ajuste.escala * 100)}% · rotación ${vista.ajuste.rotacion}°`;
     }
 
     setCart((prev: CartItem[]) => [
@@ -52,10 +70,15 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
         slug: producto.slug,
         // La foto viaja con el pedido; al confirmar la compra se sube al bucket privado
         customCupImage: imageSrc,
+        selectedOptions: opciones,
       },
     ]);
 
-    toast.success("Taza añadida a tu pedido");
+    toast.success(
+      vista
+        ? "Taza añadida a tu pedido con su diseño"
+        : "Taza añadida a tu pedido"
+    );
     setCartOpen(true);
   };
 
@@ -68,6 +91,7 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
     }
     try {
       setProcesando(true);
+      setVista(null); // se recalcula con la nueva foto
       // Antes se usaba URL.createObjectURL: esa liga solo existía en ese navegador
       // y la foto nunca se guardaba. Ahora se comprime y viaja en el carrito.
       const comprimida = await comprimirImagen(file);
@@ -86,7 +110,7 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
         {/* Escalamos el canvas (500x500) con un contenedor de altura proporcional */}
         <div className="w-[325px] h-[325px] sm:w-[375px] sm:h-[375px] md:w-[450px] md:h-[450px] lg:w-[500px] lg:h-[500px] overflow-hidden mx-auto">
           <div className="scale-[0.65] sm:scale-75 md:scale-90 lg:scale-100 origin-top-left">
-            <CupCanvas uploadedImageSrc={imageSrc} />
+            <CupCanvas uploadedImageSrc={imageSrc} onSnapshot={handleSnapshot} />
           </div>
         </div>
       </div>
@@ -117,7 +141,8 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
 
         {imageSrc && (
           <p className="text-xs font-bold text-sage -mt-2">
-            ✓ Foto cargada. Ajusta el tamaño y la posición dentro de la taza.
+            ✓ Foto cargada. Ajusta el tamaño y la posición dentro de la taza: el
+            diseño final se guarda solo con tu pedido.
           </p>
         )}
 
