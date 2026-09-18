@@ -3,6 +3,7 @@ import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
 import CupPreviewer from "@/components/CupPreviewer";
+import ComplementosSeccion from "@/components/ComplementosSeccion";
 import ProductOptionsForm from "@/components/ProductOptionsForm";
 import ProductTabs from "@/components/ProductTabs";
 import ProductGallery from "@/components/ProductGallery";
@@ -176,13 +177,11 @@ export default async function ProductPage({
         </div>
       </section>
 
-      {/* Pestañas: Descripción e Información adicional */}
-      <ProductTabs description={product.description || ""} />
-
       {/* Sección: Complementa tu Regalo */}
       {/* Sección de complementos: se muestra si el producto tiene activado
           "Complementa tu regalo" (columna is_custom_cup, que también habilita el previsualizador de taza) */}
       {product.is_custom_cup === true && (
+      <ComplementosSeccion clave={product.slug}>
       <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
           <div className="text-center mb-12">
@@ -252,7 +251,11 @@ export default async function ProductPage({
           )}
         </div>
       </section>
+      </ComplementosSeccion>
       )}
+
+      {/* Pestañas: Descripción e Información adicional */}
+      <ProductTabs description={product.description || ""} />
 
       <Footer />
     </main>
