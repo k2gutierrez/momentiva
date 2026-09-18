@@ -2,8 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function createCarouselSlide(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -84,6 +88,9 @@ export async function createCarouselSlide(formData: FormData) {
 }
 
 export async function toggleCarouselSlide(id: string, currentStatus: boolean) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("homepage_carousel")
@@ -99,6 +106,9 @@ export async function toggleCarouselSlide(id: string, currentStatus: boolean) {
 
 // Actualizar las imágenes de un slide existente (desktop y/o móvil)
 export async function updateCarouselSlideImages(id: string, formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -152,6 +162,9 @@ export async function updateCarouselSlideImages(id: string, formData: FormData) 
 }
 
 export async function deleteCarouselSlide(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
   const { error } = await supabase.from("homepage_carousel").delete().eq("id", id);
 

@@ -2,8 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function blockDate(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -30,6 +34,9 @@ export async function blockDate(formData: FormData) {
 }
 
 export async function unblockDate(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase.from("blocked_dates").delete().eq("id", id);

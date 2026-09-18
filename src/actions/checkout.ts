@@ -22,8 +22,21 @@ export interface CheckoutDeliveryAddress {
 // Bucket PRIVADO donde viven las fotos que sube el cliente (fotos de personas).
 const BUCKET_CLIENTES = "pedidos-clientes";
 
+// Solo estos tipos se aceptan del navegador. Se excluye a propósito
+// image/svg+xml: un SVG puede traer scripts y se serviría en el mismo origen
+// que el panel de administración (XSS almacenado).
+const TIPOS_CLIENTE_PERMITIDOS = ["image/jpeg", "image/png", "image/webp"];
+
+function tipoDataUrl(valor: unknown): string | null {
+  if (typeof valor !== "string") return null;
+  const m = valor.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,/);
+  if (!m) return null;
+  const tipo = m[1].toLowerCase();
+  return TIPOS_CLIENTE_PERMITIDOS.includes(tipo) ? tipo : null;
+}
+
 function esDataUrl(valor: unknown): valor is string {
-  return typeof valor === "string" && valor.startsWith("data:image/");
+  return tipoDataUrl(valor) !== null;
 }
 
 /** Sube un data URL al bucket privado y devuelve la ruta guardada (o null si falla). */
@@ -32,11 +45,15 @@ async function subirFotoPrivada(dataUrl: string, ruta: string): Promise<string |
     const admin = createAdminClient();
     if (!admin) return null;
 
-    const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    const tipo = tipoDataUrl(dataUrl);
+    if (!tipo) {
+      console.warn("[Fotos] tipo de imagen rechazado (solo jpeg/png/webp)");
+      return null;
+    }
+    const match = dataUrl.match(/^data:image\/[a-zA-Z0-9.+-]+;base64,(.+)$/);
     if (!match) return null;
 
-    const tipo = match[1];
-    const bytes = Buffer.from(match[2], "base64");
+    const bytes = Buffer.from(match[1], "base64");
     const { error } = await admin.storage
       .from(BUCKET_CLIENTES)
       .upload(ruta, bytes, { contentType: tipo, upsert: true });
@@ -113,9 +130,152 @@ export async function processCheckoutOrder(orderData: {
       discountId = discount?.id || null;
     }
 
+    // 0. Origen confiable para las URL de regreso y de notificación de Mercado Pago.
+    //    El navegador puede mandar cualquier dominio, así que se usa el del sitio.
+    const HOSTS_PERMITIDOS = [
+      "momentiva.com.mx",
+      "www.momentiva.com.mx",
+      "momentiva.marmolymiel.com.mx",
+    ];
+    const origenConfiable = (() => {
+      const configurado = (process.env.SITE_URL || process.env.NEXT_PUBLIC_SITE_URL || "").replace(/\/+$/, "");
+      if (configurado) return configurado;
+      try {
+        const url = new URL(orderData.origin);
+        if (
+          HOSTS_PERMITIDOS.includes(url.hostname) ||
+          url.hostname === "localhost" ||
+          url.hostname === "127.0.0.1"
+        ) {
+          return `${url.protocol}//${url.host}`;
+        }
+      } catch {
+        /* origen inválido: se usa el de producción */
+      }
+      return "https://momentiva.com.mx";
+    })();
+
     // 1. Id del pedido generado por el servidor (así no necesitamos leer la fila creada,
     //    lo que es compatible con RLS para visitantes)
     const orderId = randomUUID();
+
+    // 1-bis. PRECIOS DEL SERVIDOR.
+    // Nunca se confía en los precios que manda el navegador: cualquiera puede
+    // fabricar una petición con unitPrice = 1. Aquí se leen los precios, el costo
+    // de envío y el cupón desde la base y se recalculan los totales. Lo que mande
+    // el cliente solo se usa para comparar y dejar rastro en los logs.
+    const precioClient = createAdminClient() ?? supabase;
+
+    const productIds = orderData.cartItems.map((item) => item.productId);
+    const { data: prodRows } = await precioClient
+      .from("products")
+      .select("id, name, price, is_active")
+      .in("id", productIds);
+
+    const prodById = new Map(
+      (prodRows || []).map((p) => [String(p.id), p as { id: string; name: string; price: number; is_active: boolean }])
+    );
+
+    const itemsServidor = orderData.cartItems.map((item) => {
+      const prod = prodById.get(String(item.productId));
+      const precioReal = prod ? Number(prod.price) : NaN;
+      if (!prod || !prod.is_active || !Number.isFinite(precioReal)) {
+        throw new Error(
+          "Uno de los productos de tu pedido ya no está disponible. Vuelve a la tienda y agrégalo de nuevo."
+        );
+      }
+      const cantidad = Math.min(20, Math.max(1, Math.floor(Number(item.quantity) || 1)));
+      return {
+        ...item,
+        name: prod.name || item.name,
+        unitPrice: precioReal,
+        quantity: cantidad,
+      };
+    });
+
+    const subtotalServidor =
+      Math.round(
+        itemsServidor.reduce((suma, i) => suma + i.unitPrice * i.quantity, 0) * 100
+      ) / 100;
+
+    // Costo de envío real, según la zona del código postal (no lo que mande el cliente)
+    const { data: zona } = await precioClient
+      .from("delivery_zones")
+      .select("delivery_cost, is_available")
+      .eq("zip_code", orderData.deliveryZipCode)
+      .eq("is_available", true)
+      .maybeSingle();
+    if (!zona) {
+      throw new Error(
+        "No tenemos cobertura de entrega en ese código postal. Verifica tu C.P. o escríbenos por WhatsApp."
+      );
+    }
+    const envioServidor = Number(zona.delivery_cost) || 0;
+
+    // La fecha de entrega también se valida en el servidor
+    const { data: fechaBloqueada } = await precioClient
+      .from("blocked_dates")
+      .select("blocked_date")
+      .eq("blocked_date", orderData.deliveryDate)
+      .maybeSingle();
+    if (fechaBloqueada) {
+      throw new Error(
+        "La fecha de entrega elegida ya no está disponible. Vuelve al producto y elige otra."
+      );
+    }
+
+    if (orderData.cartItems.length > 30) {
+      throw new Error("El pedido tiene demasiados artículos. Escríbenos por WhatsApp.");
+    }
+
+    // Descuento real del cupón, recalculado sobre el subtotal del servidor
+    let descuentoServidor = 0;
+    if (orderData.couponCode) {
+      const { data: cupon } = await precioClient
+        .from("discounts")
+        .select("*")
+        .eq("code", orderData.couponCode.toUpperCase().trim())
+        .eq("is_active", true)
+        .maybeSingle();
+
+      const vigente =
+        cupon &&
+        (!cupon.expires_at || new Date(cupon.expires_at) >= new Date()) &&
+        (!cupon.usage_limit || !cupon.used_count || cupon.used_count < cupon.usage_limit);
+
+      if (vigente) {
+        const bruto =
+          cupon!.type === "percentage"
+            ? (subtotalServidor * Number(cupon!.value)) / 100
+            : Number(cupon!.value);
+        descuentoServidor = Math.min(Math.max(bruto, 0), subtotalServidor);
+      }
+    }
+
+    const totalServidor =
+      Math.round((subtotalServidor - descuentoServidor + envioServidor) * 100) / 100;
+
+    // Rastro si alguien intentó manipular el precio (no se usa su valor, solo se registra)
+    const manipulacion =
+      Math.abs(Number(orderData.subtotal) - subtotalServidor) > 0.01 ||
+      Math.abs(Number(orderData.totalAmount) - totalServidor) > 0.01 ||
+      Math.abs(Number(orderData.deliveryFee) - envioServidor) > 0.01;
+    if (manipulacion) {
+      console.warn("[Seguridad] Totales del cliente distintos a los del servidor", {
+        enviado: {
+          subtotal: orderData.subtotal,
+          envio: orderData.deliveryFee,
+          total: orderData.totalAmount,
+        },
+        calculado: {
+          subtotal: subtotalServidor,
+          envio: envioServidor,
+          descuento: descuentoServidor,
+          total: totalServidor,
+        },
+        orderId,
+      });
+    }
 
     // 2. Crear la preferencia de Mercado Pago ANTES de insertar (sin lecturas de BD)
     let preferenceId: string | null = null;
@@ -123,26 +283,26 @@ export async function processCheckoutOrder(orderData: {
     let paymentWarning: string | null = null;
 
     try {
-      // Items del pago = productos + envío - descuento (el total debe coincidir con el checkout)
-      const paymentItems = orderData.cartItems.map((item) => ({
+      // Items del pago = productos + envío - descuento, SIEMPRE con precios del servidor
+      const paymentItems = itemsServidor.map((item) => ({
         title: item.name.slice(0, 255),
         quantity: item.quantity,
-        unit_price: Number(item.unitPrice),
+        unit_price: item.unitPrice,
       }));
 
-      if (orderData.deliveryFee > 0) {
+      if (envioServidor > 0) {
         paymentItems.push({
           title: "Costo de envío",
           quantity: 1,
-          unit_price: Number(orderData.deliveryFee.toFixed(2)),
+          unit_price: Number(envioServidor.toFixed(2)),
         });
       }
 
-      if (orderData.discountAmount > 0) {
+      if (descuentoServidor > 0) {
         paymentItems.push({
           title: "Descuento aplicado",
           quantity: 1,
-          unit_price: -Number(orderData.discountAmount.toFixed(2)),
+          unit_price: -Number(descuentoServidor.toFixed(2)),
         });
       }
 
@@ -150,7 +310,7 @@ export async function processCheckoutOrder(orderData: {
         orderId,
         items: paymentItems,
         payerName: orderData.deliveryAddress.fullName,
-        origin: orderData.origin,
+        origin: origenConfiable,
       });
       preferenceId = pref.preferenceId;
       initPoint = pref.initPoint;
@@ -169,9 +329,9 @@ export async function processCheckoutOrder(orderData: {
       id: orderId,
       client_id: user?.id || null,
       status: "placed",
-      total_amount: orderData.totalAmount,
+      total_amount: totalServidor,
       total_cost: orderData.totalCost,
-      delivery_fee: orderData.deliveryFee,
+      delivery_fee: envioServidor,
       delivery_date: orderData.deliveryDate,
       payment_method: "mercado_pago",
       payment_status: "pending",
@@ -207,7 +367,6 @@ export async function processCheckoutOrder(orderData: {
 
     // 4. Costos reales por producto (raw_cost) para unit_cost y el costo total del pedido.
     //    Se leen con service role (dato interno, invisible para el cliente).
-    const productIds = orderData.cartItems.map((item) => item.productId);
     const adminCostClient = createAdminClient() ?? supabase;
     const { data: costRows, error: costError } = await adminCostClient
       .from("products")
@@ -225,7 +384,7 @@ export async function processCheckoutOrder(orderData: {
 
     let computedTotalCost = 0;
     const itemsToInsert = await Promise.all(
-      orderData.cartItems.map(async (item, indice) => {
+      itemsServidor.map(async (item, indice) => {
         // Si el producto existe en la BD usamos su raw_cost; si no, estimamos 40%
         const unitCost = costById.has(item.productId)
           ? costById.get(item.productId)!

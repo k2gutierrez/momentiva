@@ -45,13 +45,22 @@ export async function GET(request: NextRequest) {
   }
 
   const descargar = request.nextUrl.searchParams.get("descargar") === "1";
-  const nombre = ruta.split("/").pop() || "foto.jpg";
+  const nombre = (ruta.split("/").pop() || "foto.jpg").replace(/[^\w.\-]/g, "_");
+
+  // Solo se muestran en línea los formatos de imagen seguros. Cualquier otro tipo
+  // (por ejemplo un SVG, que puede traer scripts) se fuerza a descarga: si se
+  // sirviera en línea se ejecutaría en el mismo origen que el panel de admin.
+  const tipoCrudo = String(data.type || "").toLowerCase();
+  const tiposEnLinea = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+  const enLinea = tiposEnLinea.includes(tipoCrudo);
+  const adjuntar = descargar || !enLinea;
 
   return new NextResponse(data, {
     headers: {
-      "Content-Type": data.type || "image/jpeg",
+      "Content-Type": enLinea ? tipoCrudo : "application/octet-stream",
+      "X-Content-Type-Options": "nosniff",
       "Cache-Control": "private, max-age=300",
-      ...(descargar
+      ...(adjuntar
         ? { "Content-Disposition": `attachment; filename="${nombre}"` }
         : {}),
     },

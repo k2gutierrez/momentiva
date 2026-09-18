@@ -2,8 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function createCoupon(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -39,6 +43,9 @@ export async function createCoupon(formData: FormData) {
 }
 
 export async function toggleCouponStatus(id: string, currentStatus: boolean) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -53,6 +60,9 @@ export async function toggleCouponStatus(id: string, currentStatus: boolean) {
 }
 
 export async function deleteCoupon(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase.from("coupons").delete().eq("id", id);

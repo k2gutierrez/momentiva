@@ -2,8 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function createDeliveryZone(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -35,6 +39,9 @@ export async function createDeliveryZone(formData: FormData) {
 }
 
 export async function toggleDeliveryZoneStatus(id: string, currentStatus: boolean) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -51,6 +58,9 @@ export async function toggleDeliveryZoneStatus(id: string, currentStatus: boolea
 }
 
 export async function deleteDeliveryZone(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase.from("delivery_zones").delete().eq("id", id);
@@ -71,6 +81,9 @@ export interface DeliveryZoneUpsertRow {
 }
 
 export async function bulkUpsertDeliveryZones(zones: DeliveryZoneUpsertRow[]) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {

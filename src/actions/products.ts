@@ -3,8 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { marcaTiempoDeSlug, slugDeProducto, slugify } from "@/lib/slug";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function createProduct(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   try {
     // 1. MOVIMOS LA CONEXIÓN ADENTRO DEL TRY POR SEGURIDAD
     const supabase = await createClient();
@@ -85,6 +89,9 @@ export async function createProduct(formData: FormData) {
 
 // NUEVA FUNCIÓN: Actualizar producto existente
 export async function updateProduct(id: string, formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   try {
     // 🛡️ BLINDAJE 1: Conexión dentro de la caja de seguridad (try)
     const supabase = await createClient();
@@ -186,6 +193,9 @@ export async function updateProduct(id: string, formData: FormData) {
 }
 
 export async function toggleProductStatus(id: string, currentStatus: boolean) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -205,6 +215,9 @@ export async function toggleProductStatus(id: string, currentStatus: boolean) {
 
 // Duplicar un producto (copia inactiva) para editar solo los detalles
 export async function duplicateProduct(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {

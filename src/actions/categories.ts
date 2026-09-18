@@ -3,8 +3,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { slugify } from "@/lib/slug";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function createCategory(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -30,6 +34,9 @@ export async function createCategory(formData: FormData) {
 }
 
 export async function deleteCategory(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   // Note: Because of our foreign key setup in SQL, if a product is linked to this category,
@@ -45,6 +52,9 @@ export async function deleteCategory(id: string) {
 }
 
 export async function updateCategory(id: string, formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {

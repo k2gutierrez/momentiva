@@ -2,8 +2,12 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 export async function createInstagramPost(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
@@ -52,6 +56,9 @@ export async function createInstagramPost(formData: FormData) {
 }
 
 export async function toggleInstagramPost(id: string, currentStatus: boolean) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
   const { error } = await supabase
     .from("instagram_feed")
@@ -66,6 +73,9 @@ export async function toggleInstagramPost(id: string, currentStatus: boolean) {
 }
 
 export async function deleteInstagramPost(id: string) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
   const { error } = await supabase.from("instagram_feed").delete().eq("id", id);
 

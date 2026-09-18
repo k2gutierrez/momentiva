@@ -2,9 +2,13 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@/lib/auth/requireAdmin";
 
 // Update order status: placed -> work_in_progress -> finish -> delivered
 export async function updateOrderStatus(orderId: string, status: 'placed' | 'work_in_progress' | 'finish' | 'delivered') {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   const { error } = await supabase
@@ -22,6 +26,9 @@ export async function updateOrderStatus(orderId: string, status: 'placed' | 'wor
 
 // Register an offline/external sale to form part of the database and margin tracking[cite: 1]
 export async function createOfflineSale(formData: FormData) {
+  // Autorización en el servidor: el proxy de /admin NO protege las actions
+  await requireAdmin();
+
   const supabase = await createClient();
 
   try {
