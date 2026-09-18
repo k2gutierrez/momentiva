@@ -90,6 +90,23 @@ export default async function ProductPage({
         .order("created_at", { ascending: false })
     : { data: null };
 
+  // Producto real de la taza personalizada: de ahí salen el id (para que el pedido
+  // sea válido) y el precio (editable desde el panel). Si no existe, no se muestra
+  // el personalizador para no romper el checkout.
+  const { data: tazaRows } = await supabase
+    .from("products")
+    .select("id, name, slug, price, images")
+    .or("slug.eq.taza-personalizada,name.ilike.%taza%")
+    .order("created_at", { ascending: true })
+    .limit(1);
+
+  const productoTaza = tazaRows?.[0] || null;
+
+  // La taza no se repite como tarjeta: su lugar es el personalizador de arriba
+  const complementosFiltrados = (complementos || []).filter(
+    (c) => c.id !== productoTaza?.id
+  );
+
   // Fechas bloqueadas para el selector de entrega
   const { data: blockedDatesRows } = await supabase
     .from("blocked_dates")
@@ -179,12 +196,24 @@ export default async function ProductPage({
           </div>
 
           {/* Personalizador de Taza: solo si el producto lo tiene habilitado (is_custom_cup) */}
-          {product.is_custom_cup && <CupPreviewer />}
+          {/* Personalizador de Taza: la taza se agrega desde aquí (con foto),
+              por eso no se repite como tarjeta en la cuadrícula de abajo. */}
+          {product.is_custom_cup && productoTaza && (
+            <CupPreviewer
+              producto={{
+                id: productoTaza.id,
+                name: productoTaza.name,
+                slug: productoTaza.slug,
+                price: Number(productoTaza.price),
+                image: productoTaza.images?.[0] || null,
+              }}
+            />
+          )}
 
           {/* Grid de complementos (desde Supabase, categoría "Complementa tu regalo") */}
-          {complementos && complementos.length > 0 ? (
+          {complementosFiltrados.length > 0 ? (
             <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mt-12">
-              {complementos.map((comp) => (
+              {complementosFiltrados.map((comp) => (
                 <Link
                   href={`/product/${comp.slug}`}
                   key={comp.id}

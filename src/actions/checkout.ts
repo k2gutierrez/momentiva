@@ -17,6 +17,70 @@ export interface CheckoutDeliveryAddress {
   deliveryTime?: string;
 }
 
+// Bucket PRIVADO donde viven las fotos que sube el cliente (fotos de personas).
+const BUCKET_CLIENTES = "pedidos-clientes";
+
+function esDataUrl(valor: unknown): valor is string {
+  return typeof valor === "string" && valor.startsWith("data:image/");
+}
+
+/** Sube un data URL al bucket privado y devuelve la ruta guardada (o null si falla). */
+async function subirFotoPrivada(dataUrl: string, ruta: string): Promise<string | null> {
+  try {
+    const admin = createAdminClient();
+    if (!admin) return null;
+
+    const match = dataUrl.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+    if (!match) return null;
+
+    const tipo = match[1];
+    const bytes = Buffer.from(match[2], "base64");
+    const { error } = await admin.storage
+      .from(BUCKET_CLIENTES)
+      .upload(ruta, bytes, { contentType: tipo, upsert: true });
+
+    if (error) {
+      console.error("[Fotos] no se pudo subir al bucket privado:", error.message);
+      return null;
+    }
+    return ruta;
+  } catch (error) {
+    console.error("[Fotos] error subiendo la imagen:", error);
+    return null;
+  }
+}
+
+/** Reemplaza por rutas del bucket privado cualquier foto que venga dentro de las opciones. */
+async function subirImagenesDeOpciones(
+  opciones: Record<string, unknown>,
+  orderId: string,
+  indice: number
+): Promise<Record<string, unknown>> {
+  const salida: Record<string, unknown> = { ...opciones };
+
+  for (const [clave, valor] of Object.entries(salida)) {
+    const base = `${orderId}/item-${indice + 1}-${clave.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+
+    if (esDataUrl(valor)) {
+      const ruta = await subirFotoPrivada(valor, `${base}.jpg`);
+      if (ruta) salida[clave] = ruta;
+      continue;
+    }
+
+    if (Array.isArray(valor) && valor.some(esDataUrl)) {
+      salida[clave] = await Promise.all(
+        valor.map(async (v, i) => {
+          if (!esDataUrl(v)) return v;
+          const ruta = await subirFotoPrivada(v, `${base}-${i + 1}.jpg`);
+          return ruta || v;
+        })
+      );
+    }
+  }
+
+  return salida;
+}
+
 export async function processCheckoutOrder(orderData: {
   deliveryZipCode: string;
   deliveryAddress: CheckoutDeliveryAddress;
@@ -158,22 +222,45 @@ export async function processCheckoutOrder(orderData: {
     });
 
     let computedTotalCost = 0;
-    const itemsToInsert = orderData.cartItems.map((item) => {
-      // Si el producto existe en la BD usamos su raw_cost; si no (ej. taza personalizada), estimamos 40%
-      const unitCost = costById.has(item.productId)
-        ? costById.get(item.productId)!
-        : Math.round(item.unitPrice * 0.4 * 100) / 100;
-      computedTotalCost += unitCost * item.quantity;
-      return {
-        order_id: orderId,
-        product_id: item.productId,
-        quantity: item.quantity,
-        unit_price: item.unitPrice,
-        unit_cost: unitCost,
-        selected_options: item.selectedOptions || {},
-        custom_cup_image_url: item.customCupImage || null,
-      };
-    });
+    const itemsToInsert = await Promise.all(
+      orderData.cartItems.map(async (item, indice) => {
+        // Si el producto existe en la BD usamos su raw_cost; si no, estimamos 40%
+        const unitCost = costById.has(item.productId)
+          ? costById.get(item.productId)!
+          : Math.round(item.unitPrice * 0.4 * 100) / 100;
+        computedTotalCost += unitCost * item.quantity;
+
+        // Las fotos del cliente (taza y opciones con imagen) se suben al bucket
+        // PRIVADO y en la base queda solo la ruta del archivo. Antes se guardaban
+        // como texto base64 dentro del pedido: pesaba muchísimo y no se podían
+        // descargar como archivo.
+        const opciones = await subirImagenesDeOpciones(
+          item.selectedOptions || {},
+          orderId,
+          indice
+        );
+
+        let fotoTaza: string | null = item.customCupImage || null;
+        if (fotoTaza && fotoTaza.startsWith("data:image/")) {
+          const ruta = await subirFotoPrivada(
+            fotoTaza,
+            `${orderId}/taza-${indice + 1}.jpg`
+          );
+          // Si la subida falla, dejamos el data URL como respaldo para no perder la foto
+          fotoTaza = ruta || fotoTaza;
+        }
+
+        return {
+          order_id: orderId,
+          product_id: item.productId,
+          quantity: item.quantity,
+          unit_price: item.unitPrice,
+          unit_cost: unitCost,
+          selected_options: opciones,
+          custom_cup_image_url: fotoTaza,
+        };
+      })
+    );
 
     const { error: itemsError } = await insertClient
       .from("order_items")

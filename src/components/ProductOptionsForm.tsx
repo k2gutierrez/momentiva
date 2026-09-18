@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import AddToCartButton from "./AddToCartButton";
 import DeliveryDateTimePicker from "./DeliveryDateTimePicker";
 import { ImageSquareIcon } from "@phosphor-icons/react/dist/ssr";
+import { comprimirImagen as compressImage } from "@/lib/imagen";
 
 interface OptionDef {
   name: string;
@@ -26,39 +27,6 @@ interface ProductOptionsFormProps {
   blockedDates?: string[];
 }
 
-/**
- * Comprime una imagen con un canvas para que sea ligera de guardar
- * (máx 900px, JPEG calidad 0.72) y devuelve un dataURL.
- */
-function compressImage(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const img = new Image();
-      img.onload = () => {
-        const maxSize = 900;
-        let { width, height } = img;
-        const scale = Math.min(1, maxSize / Math.max(width, height));
-        width = Math.round(width * scale);
-        height = Math.round(height * scale);
-
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return resolve(reader.result as string);
-
-        ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", 0.72));
-      };
-      img.onerror = () => resolve(reader.result as string);
-      img.src = reader.result as string;
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
 export default function ProductOptionsForm({ product, anticipationDays = 0, blockedDates = [] }: ProductOptionsFormProps) {
   // Estado para guardar lo que el cliente elige
   const [selections, setSelections] = useState<Record<string, string | boolean | string[]>>({});
@@ -73,7 +41,7 @@ export default function ProductOptionsForm({ product, anticipationDays = 0, bloc
   const handleImageUpload = async (name: string, files: FileList | null) => {
     if (!files || files.length === 0) return;
     const incoming = Array.from(files).slice(0, 5); // máx 5 fotos
-    const compressed = await Promise.all(incoming.map(compressImage));
+    const compressed = await Promise.all(incoming.map((archivo) => compressImage(archivo)));
 
     setImagePreviews((prev) => ({
       ...prev,

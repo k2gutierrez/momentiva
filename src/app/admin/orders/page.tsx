@@ -8,6 +8,17 @@ import { toast } from "sonner";
 
 type OrderStatus = 'placed' | 'work_in_progress' | 'finish' | 'delivered';
 
+/**
+ * Las fotos nuevas se guardan como ruta dentro del bucket privado y se sirven por
+ * esta ruta interna (solo administradores). Las fotos viejas quedaron como data URL
+ * dentro del pedido, así que se siguen mostrando tal cual (compatibilidad).
+ */
+function urlFoto(valor: string, descargar = false): string {
+  const esRutaPrivada = !valor.startsWith("data:") && !valor.startsWith("http");
+  if (!esRutaPrivada) return valor;
+  return `/admin/pedidos/foto?ruta=${encodeURIComponent(valor)}${descargar ? "&descargar=1" : ""}`;
+}
+
 interface OrderRow {
   id: string;
   status: string;
@@ -254,10 +265,20 @@ export default function AdminOrdersPage() {
                                             <p key={key} className="text-xs text-gray-600">
                                               <span className="font-bold">{key}:</span>{" "}
                                               {Array.isArray(value) ? (
-                                                <span className="flex flex-wrap gap-1 mt-1">
+                                                <span className="flex flex-wrap gap-2 mt-1">
                                                   {value.map((src, i) => (
-                                                    // eslint-disable-next-line @next/next/no-img-element
-                                                    <img key={i} src={String(src)} alt={`${key} ${i + 1}`} className="w-12 h-12 rounded-lg object-cover bg-cream" />
+                                                    <a
+                                                      key={i}
+                                                      href={urlFoto(String(src), true)}
+                                                      title="Descargar foto"
+                                                      className="group relative"
+                                                    >
+                                                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                      <img src={urlFoto(String(src))} alt={`${key} ${i + 1}`} className="w-14 h-14 rounded-lg object-cover bg-cream border border-lilaPastel" />
+                                                      <span className="absolute inset-x-0 bottom-0 rounded-b-lg bg-berenjena/80 text-white text-[9px] font-bold text-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        Descargar
+                                                      </span>
+                                                    </a>
                                                   ))}
                                                 </span>
                                               ) : value === true ? (
@@ -272,8 +293,23 @@ export default function AdminOrdersPage() {
                                     )}
 
                                     {item.custom_cup_image_url && (
-                                      // eslint-disable-next-line @next/next/no-img-element
-                                      <img src={item.custom_cup_image_url} alt="Diseño de taza" className="w-16 h-16 rounded-lg object-cover mt-2" />
+                                      <div className="mt-3 flex items-center gap-3">
+                                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                                        <img
+                                          src={urlFoto(item.custom_cup_image_url)}
+                                          alt="Foto de la taza personalizada"
+                                          className="w-24 h-24 rounded-lg object-cover border border-lilaPastel bg-cream"
+                                        />
+                                        <div className="flex flex-col gap-1">
+                                          <span className="text-xs font-bold text-berenjena">Foto de la taza</span>
+                                          <a
+                                            href={urlFoto(item.custom_cup_image_url, true)}
+                                            className="text-xs font-bold text-terracota hover:underline"
+                                          >
+                                            ⬇ Descargar imagen
+                                          </a>
+                                        </div>
+                                      </div>
                                     )}
                                   </div>
                                 );
