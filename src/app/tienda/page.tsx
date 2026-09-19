@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
 import Link from "next/link";
 import { ArrowRightIcon, MagnifyingGlassIcon } from "@phosphor-icons/react/dist/ssr";
+import { idsDeCategoriasComplementos } from "@/lib/complementos";
 
 export const dynamic = 'force-dynamic';
 
@@ -31,22 +32,32 @@ export default async function TiendaPage({
     .select("category_id")
     .eq("is_active", true);
 
+  // Los productos de "Complementa tu regalo" no se muestran como catálogo ni en
+  // las pills: solo viven dentro de los productos que aceptan complementos.
+  const idsComplementos = idsDeCategoriasComplementos((categories || []) as {
+    id: string;
+    slug?: string | null;
+    name?: string | null;
+  }[]);
+
   const categoriasConProductos = new Set(
     (productosActivos || [])
       .map((p) => p.category_id)
-      .filter((id): id is string => Boolean(id))
+      .filter((id): id is string => Boolean(id) && !idsComplementos.has(id as string))
   );
 
   // 3. Construir la consulta de productos
   let productsQuery = supabase
     .from("products")
-    .select("id, name, slug, price, images, is_in_stock_item")
+    .select("id, name, slug, price, images, is_in_stock_item, category_id")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
   // Si hay una categoría en la URL, filtramos los productos
   let activeCategoryName = "Todos los productos";
-  if (categoriaSlug && categories) {
+  if (categoriaSlug && categories && !idsComplementos.has(
+    (categories.find((c) => c.slug === categoriaSlug)?.id) || ""
+  )) {
     const selectedCat = categories.find((c) => c.slug === categoriaSlug);
     if (selectedCat) {
       productsQuery = productsQuery.eq("category_id", selectedCat.id);
@@ -54,7 +65,10 @@ export default async function TiendaPage({
     }
   }
 
-  const { data: products } = await productsQuery;
+  const { data: productsRaw } = await productsQuery;
+  const products = (productsRaw || []).filter(
+    (p) => !p.category_id || !idsComplementos.has(p.category_id)
+  );
 
   return (
     <main className="bg-[#F5EFF6] min-h-screen flex flex-col">

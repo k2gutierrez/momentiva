@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
 import CupPreviewer from "@/components/CupPreviewer";
 import ComplementosSeccion from "@/components/ComplementosSeccion";
+import ComplementosGrid from "@/components/ComplementosGrid";
 import ProductOptionsForm from "@/components/ProductOptionsForm";
 import ProductTabs from "@/components/ProductTabs";
 import ProductGallery from "@/components/ProductGallery";
@@ -85,7 +86,7 @@ export default async function ProductPage({
   const { data: complementos } = complementCategory
     ? await supabase
         .from("products")
-        .select("id, name, slug, price, images")
+        .select("id, name, slug, price, images, custom_options")
         .eq("category_id", complementCategory.id)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -171,6 +172,7 @@ export default async function ProductPage({
               }}
               anticipationDays={product.anticipation_days || 0}
               blockedDates={blockedDates}
+              tieneComplementos={product.is_custom_cup === true}
             />
 
           </div>
@@ -209,39 +211,18 @@ export default async function ProductPage({
             />
           )}
 
-          {/* Grid de complementos (desde Supabase, categoría "Complementa tu regalo") */}
+          {/* Grid de complementos: se agregan con la misma fecha y hora del producto */}
           {complementosFiltrados.length > 0 ? (
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 md:gap-6 mt-12">
-              {complementosFiltrados.map((comp) => (
-                <Link
-                  href={`/product/${comp.slug}`}
-                  key={comp.id}
-                  className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
-                >
-                  <div className="aspect-square bg-cream overflow-hidden">
-                    {comp.images && comp.images.length > 0 ? (
-                      <img
-                        src={comp.images[0]}
-                        alt={comp.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-sage text-xs font-bold bg-lilaPastel/30">
-                        Sin imagen
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4 text-center">
-                    <h4 className="text-sm font-bold text-[#3A243F] leading-tight group-hover:text-terracota transition-colors">
-                      {comp.name}
-                    </h4>
-                    <p className="text-terracota font-bold mt-2">
-                      ${Number(comp.price).toFixed(2)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+            <ComplementosGrid
+              complementos={complementosFiltrados.map((c) => ({
+                id: c.id,
+                name: c.name,
+                slug: c.slug,
+                price: Number(c.price),
+                images: c.images ?? null,
+                custom_options: c.custom_options,
+              }))}
+            />
           ) : (
             <div className="text-center py-10 mt-12 bg-white rounded-2xl border border-dashed border-lilaPastel">
               <p className="text-gray-500 text-sm">
@@ -249,6 +230,7 @@ export default async function ProductPage({
               </p>
             </div>
           )}
+
         </div>
       </section>
       </ComplementosSeccion>

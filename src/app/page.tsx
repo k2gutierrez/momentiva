@@ -6,6 +6,7 @@ import HeroCarousel from "@/components/HeroCarousel";
 import InstagramFeed from "@/components/InstagramFeed";
 import Link from "next/link";
 import Footer from "@/components/Footer";
+import { idsDeCategoriasComplementos } from "@/lib/complementos";
 
 export const dynamic = 'force-dynamic';
 
@@ -45,8 +46,17 @@ export default async function Home() {
     .select("id, name, slug")
     .order("name", { ascending: true });
 
-  const categoriasConProductos = (categories || []).filter((cat) =>
-    (products || []).some((p) => p.category_id === cat.id)
+  // Los productos de "Complementa tu regalo" no son catálogo: solo se ofrecen
+  // dentro de los productos que aceptan complementos.
+  const idsComplementos = idsDeCategoriasComplementos(categories || []);
+  const productosCatalogo = (products || []).filter(
+    (p) => !p.category_id || !idsComplementos.has(p.category_id)
+  );
+
+  const categoriasConProductos = (categories || []).filter(
+    (cat) =>
+      !idsComplementos.has(cat.id) &&
+      productosCatalogo.some((p) => p.category_id === cat.id)
   );
 
   return (
@@ -126,9 +136,9 @@ export default async function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-berenjena">¡Globos personalizados para cualquier ocasión!</h2>
         </div>
 
-        {products && products.length > 0 ? (
+        {productosCatalogo.length > 0 ? (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8">
-            {products.map((product) => (
+            {productosCatalogo.map((product) => (
               <Link
                 href={`/product/${product.slug}`}
                 key={product.id}

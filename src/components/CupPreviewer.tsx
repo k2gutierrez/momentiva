@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import { UploadSimpleIcon, ShoppingCartIcon } from "@phosphor-icons/react/dist/ssr";
 import { useSetAtom } from "jotai";
 import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
+import { entregaSeleccionadaAtom } from "@/store/complementosStore";
+import { useAtomValue } from "jotai";
 import { toast } from "sonner";
 import { comprimirImagen } from "@/lib/imagen";
 import type { AjusteTaza } from "./CupCanvas";
@@ -37,6 +39,8 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
 
   const setCart = useSetAtom(cartItemsAtom);
   const setCartOpen = useSetAtom(cartOpenAtom);
+  // La taza hereda la fecha y hora del producto principal
+  const entrega = useAtomValue(entregaSeleccionadaAtom);
 
   const handleSnapshot = useCallback(
     (dataUrl: string, ajuste: AjusteTaza) => setVista({ dataUrl, ajuste }),
@@ -46,6 +50,13 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
   const handleAddCupToCart = () => {
     if (!imageSrc) {
       toast.error("Por favor sube una imagen primero");
+      return;
+    }
+
+    if (!entrega.fecha || !entrega.hora) {
+      toast.error(
+        "Primero elige la fecha y el horario de entrega del producto de arriba."
+      );
       return;
     }
 
@@ -71,6 +82,9 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
         // La foto viaja con el pedido; al confirmar la compra se sube al bucket privado
         customCupImage: imageSrc,
         selectedOptions: opciones,
+        // Misma entrega que el producto principal (así el checkout no pide fecha aparte)
+        deliveryDate: entrega.fecha,
+        deliveryTime: entrega.hora,
       },
     ]);
 

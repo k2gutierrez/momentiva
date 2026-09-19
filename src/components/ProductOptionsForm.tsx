@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState } from "react";
-import { useAtom } from "jotai";
-import { quiereComplementosAtom } from "@/store/complementosStore";
+import React, { useEffect, useState } from "react";
+import { useAtom, useSetAtom } from "jotai";
+import { entregaSeleccionadaAtom, quiereComplementosAtom } from "@/store/complementosStore";
 import AddToCartButton from "./AddToCartButton";
 import DeliveryDateTimePicker from "./DeliveryDateTimePicker";
 import { ImageSquareIcon } from "@phosphor-icons/react/dist/ssr";
@@ -27,15 +27,28 @@ interface ProductOptionsFormProps {
   };
   anticipationDays?: number;
   blockedDates?: string[];
+  /** Solo los productos con "Complementa tu regalo" activado muestran la pregunta. */
+  tieneComplementos?: boolean;
 }
 
-export default function ProductOptionsForm({ product, anticipationDays = 0, blockedDates = [] }: ProductOptionsFormProps) {
+export default function ProductOptionsForm({
+  product,
+  anticipationDays = 0,
+  blockedDates = [],
+  tieneComplementos = false,
+}: ProductOptionsFormProps) {
   // Estado para guardar lo que el cliente elige
   const [selections, setSelections] = useState<Record<string, string | boolean | string[]>>({});
   const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
   const [quiereComplementos, setQuiereComplementos] = useAtom(quiereComplementosAtom);
+  const setEntregaSeleccionada = useSetAtom(entregaSeleccionadaAtom);
+
+  // La fecha y hora elegidas aquí las heredan los complementos que se agreguen
+  useEffect(() => {
+    setEntregaSeleccionada({ fecha: deliveryDate, hora: deliveryTime });
+  }, [deliveryDate, deliveryTime, setEntregaSeleccionada]);
 
   const handleInputChange = (name: string, value: string | boolean | string[]) => {
     setSelections((prev) => ({ ...prev, [name]: value }));
@@ -170,7 +183,9 @@ export default function ProductOptionsForm({ product, anticipationDays = 0, bloc
         </div>
       )}
 
-      {/* ¿Quiere agregar complementos? Si dice "no", no se muestra nada abajo */}
+      {/* ¿Quiere agregar complementos? Solo si el producto los acepta.
+          Si dice "no", no se muestra nada abajo. */}
+      {tieneComplementos && (
       <div className="bg-[#EFE6F4] p-5 rounded-2xl mb-6 shadow-md">
         <h3 className="text-[#3A243F] font-bold text-sm uppercase tracking-wider mb-1">
           ¿Quieres agregar un complemento?
@@ -220,6 +235,7 @@ export default function ProductOptionsForm({ product, anticipationDays = 0, bloc
           </a>
         )}
       </div>
+      )}
 
       {/* Fecha y horario de entrega (disponibilidad inmediata) */}
       <DeliveryDateTimePicker

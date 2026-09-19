@@ -8,3 +8,14 @@ import { atom } from "jotai";
  * Arranca en `false`: si no dice que sí, los complementos no se muestran.
  */
 export const quiereComplementosAtom = atom<boolean>(false);
+
+/**
+ * Fecha y hora de entrega elegidas en la ficha del producto.
+ *
+ * Los complementos se agregan desde la misma ficha, así que heredan esta entrega:
+ * de lo contrario el checkout pediría fecha y hora para el complemento.
+ */
+export const entregaSeleccionadaAtom = atom<{ fecha: string; hora: string }>({
+  fecha: "",
+  hora: "",
+});
