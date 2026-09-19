@@ -48,6 +48,23 @@ export default function ResetPasswordPage() {
         // Se quita el código de la barra de direcciones para que al recargar no falle
         url.searchParams.delete("code");
         window.history.replaceState({}, "", url.pathname);
+      } else if (window.location.hash.includes("access_token")) {
+        // Formato alterno: los tokens vienen en el hash (#access_token=...).
+        // El cliente de SSR no los procesa solo, así que se aplican a mano.
+        const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const accessToken = params.get("access_token");
+        const refreshToken = params.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) {
+            if (!cancelado) setEstado("invalido");
+            return;
+          }
+          window.history.replaceState({}, "", url.pathname);
+        }
       }
 
       const { data } = await supabase.auth.getSession();
