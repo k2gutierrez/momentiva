@@ -47,6 +47,25 @@ export default function ResetPasswordPage() {
         return;
       }
 
+      // PRIORIDAD 1: enlace con token_hash que apunta a NUESTRA página.
+      // Se verifica en el navegador (JavaScript), así que los escáneres de correo
+      // que solo visitan la liga NO lo consumen: la clienta hace clic y solo pone
+      // su contraseña, sin pasos extra.
+      const tokenHash = url.searchParams.get("token_hash");
+      if (tokenHash) {
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: tokenHash,
+          type: (url.searchParams.get("type") as "recovery") || "recovery",
+        });
+        if (!error) {
+          url.searchParams.delete("token_hash");
+          url.searchParams.delete("type");
+          window.history.replaceState({}, "", url.pathname);
+          if (!cancelado) setEstado("listo");
+          return;
+        }
+      }
+
       const code = url.searchParams.get("code");
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
@@ -165,8 +184,8 @@ export default function ResetPasswordPage() {
               <div className="text-sm text-amber-900">
                 <p className="font-bold">El enlace ya no sirvió</p>
                 <p className="mt-1">
-                  A veces el correo «gasta» la liga antes de que la abras. No pasa nada:
-                  usa el <strong>código de 6 dígitos</strong> que viene en el mismo correo.
+                  Si ya pasó mucho tiempo o el correo se abrió en otro dispositivo, usa
+                  el <strong>código de acceso</strong> que viene en el mismo correo.
                 </p>
               </div>
             </div>
