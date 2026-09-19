@@ -10,20 +10,30 @@ import {
   WarningCircleIcon,
   CircleNotchIcon,
   CheckCircleIcon,
+  EnvelopeSimpleIcon,
+  KeyIcon,
 } from "@phosphor-icons/react/dist/ssr";
 
-type Estado = "verificando" | "listo" | "invalido";
+type Estado = "verificando" | "listo" | "codigo";
 
 export default function ResetPasswordPage() {
   const [newPassword, setNewPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [estado, setEstado] = useState<Estado>("verificando");
+
+  // Formulario alterno: código de 6 dígitos del correo
+  const [email, setEmail] = useState("");
+  const [codigo, setCodigo] = useState("");
+  const [verificandoCodigo, setVerificandoCodigo] = useState(false);
+  const [reenviando, setReenviando] = useState(false);
+
   const router = useRouter();
 
   /**
-   * El enlace del correo no inicia sesión solo: trae un código (`?code=...`) que
-   * hay que canjear por una sesión. Antes se guardaba la contraseña sin canjearlo,
-   * por eso aparecía el error "Auth session missing!".
+   * El enlace del correo trae un código (`?code=`) o tokens en el hash que hay que
+   * convertir en sesión. Si el enlace ya se usó o algún escáner de correo lo
+   * "gastó" antes de que la clienta lo abriera, se ofrece la vía del código de 6
+   * dígitos, que no se consume.
    */
   useEffect(() => {
     const supabase = createClient();
@@ -32,9 +42,8 @@ export default function ResetPasswordPage() {
     (async () => {
       const url = new URL(window.location.href);
 
-      // Si el enlace venció, Supabase regresa con un error en la URL
       if (url.searchParams.get("error") || window.location.hash.includes("error")) {
-        if (!cancelado) setEstado("invalido");
+        if (!cancelado) setEstado("codigo");
         return;
       }
 
@@ -42,15 +51,12 @@ export default function ResetPasswordPage() {
       if (code) {
         const { error } = await supabase.auth.exchangeCodeForSession(code);
         if (error) {
-          if (!cancelado) setEstado("invalido");
+          if (!cancelado) setEstado("codigo");
           return;
         }
-        // Se quita el código de la barra de direcciones para que al recargar no falle
         url.searchParams.delete("code");
         window.history.replaceState({}, "", url.pathname);
       } else if (window.location.hash.includes("access_token")) {
-        // Formato alterno: los tokens vienen en el hash (#access_token=...).
-        // El cliente de SSR no los procesa solo, así que se aplican a mano.
         const params = new URLSearchParams(window.location.hash.replace(/^#/, ""));
         const accessToken = params.get("access_token");
         const refreshToken = params.get("refresh_token");
@@ -60,7 +66,7 @@ export default function ResetPasswordPage() {
             refresh_token: refreshToken,
           });
           if (error) {
-            if (!cancelado) setEstado("invalido");
+            if (!cancelado) setEstado("codigo");
             return;
           }
           window.history.replaceState({}, "", url.pathname);
@@ -68,7 +74,7 @@ export default function ResetPasswordPage() {
       }
 
       const { data } = await supabase.auth.getSession();
-      if (!cancelado) setEstado(data.session ? "listo" : "invalido");
+      if (!cancelado) setEstado(data.session ? "listo" : "codigo");
     })();
 
     return () => {
@@ -91,15 +97,53 @@ export default function ResetPasswordPage() {
     if (error) {
       toast.error(
         error.message.toLowerCase().includes("session")
-          ? "El enlace ya caducó o se usó antes. Pide uno nuevo desde MI CUENTA."
+          ? "Tu sesión de recuperación caducó. Vuelve a pedir el correo."
           : error.message
       );
-      setEstado("invalido");
+      setEstado("codigo");
     } else {
       toast.success("¡Contraseña actualizada! Ya puedes usarla.");
       router.push("/mi-cuenta");
     }
     setIsLoading(false);
+  };
+
+  const handleVerificarCodigo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim() || codigo.trim().length < 6) {
+      toast.error("Escribe tu correo y el código que te llegó.");
+      return;
+    }
+
+    setVerificandoCodigo(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: codigo.trim(),
+      type: "recovery",
+    });
+
+    if (error) {
+      toast.error("Código incorrecto o caducado. Pide uno nuevo.");
+    } else {
+      setEstado("listo");
+    }
+    setVerificandoCodigo(false);
+  };
+
+  const handleReenviar = async () => {
+    if (!email.trim()) {
+      toast.error("Escribe tu correo para enviarte uno nuevo.");
+      return;
+    }
+    setReenviando(true);
+    const supabase = createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    if (error) toast.error(error.message);
+    else toast.success("Te enviamos un correo nuevo. Revisa también spam.");
+    setReenviando(false);
   };
 
   return (
@@ -114,24 +158,76 @@ export default function ResetPasswordPage() {
           </div>
         )}
 
-        {estado === "invalido" && (
+        {estado === "codigo" && (
           <div className="space-y-5">
             <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 flex gap-3">
               <WarningCircleIcon size={22} weight="bold" className="text-amber-600 shrink-0 mt-0.5" />
               <div className="text-sm text-amber-900">
-                <p className="font-bold">Este enlace ya no es válido</p>
+                <p className="font-bold">El enlace ya no sirvió</p>
                 <p className="mt-1">
-                  Los enlaces de recuperación <strong>caducan en 1 hora</strong> y solo se
-                  pueden usar una vez. Pide uno nuevo desde <strong>MI CUENTA</strong>.
+                  A veces el correo «gasta» la liga antes de que la abras. No pasa nada:
+                  usa el <strong>código de 6 dígitos</strong> que viene en el mismo correo.
                 </p>
               </div>
             </div>
-            <Link
-              href="/"
-              className="block text-center w-full bg-terracota text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-opacity-90 transition-all"
-            >
-              Volver al inicio
-            </Link>
+
+            <form onSubmit={handleVerificarCodigo} className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Tu correo</label>
+                <div className="relative flex items-center">
+                  <EnvelopeSimpleIcon size={20} className="absolute left-3 text-sage" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="tucorreo@ejemplo.com"
+                    className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">
+                  Código de acceso
+                </label>
+                <div className="relative flex items-center">
+                  <KeyIcon size={20} className="absolute left-3 text-sage" />
+                  <input
+                    type="text"
+                    required
+                    inputMode="numeric"
+                    maxLength={10}
+                    value={codigo}
+                    onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123456"
+                    className="w-full pl-10 pr-4 py-2.5 border border-lilaPastel rounded-xl focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena tracking-[0.3em] font-bold"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={verificandoCodigo}
+                className="w-full bg-terracota text-white font-bold py-3.5 rounded-xl shadow-md hover:bg-opacity-90 disabled:opacity-70 transition-all"
+              >
+                {verificandoCodigo ? "Verificando..." : "Continuar"}
+              </button>
+            </form>
+
+            <div className="text-center space-y-2">
+              <button
+                type="button"
+                onClick={handleReenviar}
+                disabled={reenviando}
+                className="text-sm font-bold text-terracota hover:underline disabled:opacity-60"
+              >
+                {reenviando ? "Enviando…" : "Enviarme un correo nuevo"}
+              </button>
+              <p className="text-xs text-gray-400">
+                Los enlaces y códigos caducan en 1 hora.
+              </p>
+            </div>
           </div>
         )}
 
@@ -177,6 +273,10 @@ export default function ResetPasswordPage() {
             </form>
           </>
         )}
+
+        <Link href="/" className="block text-center text-xs text-gray-400 hover:text-terracota">
+          Volver al inicio
+        </Link>
       </div>
     </div>
   );
