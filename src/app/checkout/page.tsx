@@ -205,6 +205,7 @@ export default function CheckoutPage() {
     // Estimate gross cost placeholder for margins
     const totalCost = subtotal * 0.4; 
 
+    try {
     const result = await processCheckoutOrder({
       deliveryZipCode: zipCode,
       deliveryAddress: {
@@ -239,6 +240,14 @@ export default function CheckoutPage() {
       origin: window.location.origin,
     });
 
+    // Si la acción no devolvió nada válido, se avisa en vez de quedarse "Procesando..."
+    if (!result || typeof result !== "object") {
+      toast.error("No pudimos registrar tu pedido. Inténtalo de nuevo, por favor.", {
+        duration: 8000,
+      });
+      return;
+    }
+
     if (result.success) {
       if (result.initPoint) {
         // El carrito se limpia en la página de resultado del pago (ClearCartOnMount),
@@ -253,10 +262,20 @@ export default function CheckoutPage() {
           (result.warning || "inténtalo de nuevo o contáctanos por WhatsApp.")
       );
     } else {
-      toast.error(result.error || "Error al procesar el pedido");
+      toast.error(result.error || "Error al procesar el pedido", { duration: 8000 });
     }
-
-    setIsSubmitting(false);
+    } catch (error) {
+      // Antes, si la petición fallaba (sin datos, con mala conexión o si el servidor
+      // tardaba demasiado), el botón se quedaba en "Procesando..." para siempre y la
+      // clienta no sabía qué pasó. Ahora se le dice claramente y puede reintentar.
+      console.error("Error al procesar el pedido:", error);
+      toast.error(
+        "No se pudo conectar con la tienda. Revisa tu conexión e inténtalo de nuevo.",
+        { duration: 10000 }
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (orderComplete) {

@@ -121,9 +121,9 @@ export async function processCheckoutOrder(orderData: {
   cartItems: CartItem[];
   origin: string;
 }) {
-  const supabase = await createClient();
-
   try {
+    const supabase = await createClient();
+
     // Límite de intentos por IP: cada llamada crea un pedido, una preferencia de
     // Mercado Pago, sube fotos y manda notificaciones.
     const ip = ipDelVisitante(await headers());
