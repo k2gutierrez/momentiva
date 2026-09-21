@@ -66,12 +66,16 @@ export async function POST(request: NextRequest) {
         const admin = createAdminClient();
         const supabase = admin ?? (await createClient());
 
-        const paymentStatus =
-          info.status === "approved"
-            ? "paid"
-            : info.status === "rejected"
-            ? "rejected"
-            : "pending";
+        const devuelto =
+          info.status === "refunded" || info.status === "charged_back";
+
+        const paymentStatus = info.status === "approved"
+          ? "paid"
+          : devuelto
+          ? "refunded"
+          : info.status === "rejected"
+          ? "rejected"
+          : "pending";
 
         const orderStatus =
           info.status === "approved" ? "work_in_progress" : "placed";

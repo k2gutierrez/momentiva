@@ -505,6 +505,31 @@ export async function processCheckoutOrder(orderData: {
   }
 }
 
+/**
+ * Consulta el estado de un pago y mantiene el pedido al día.
+ *
+ * La usa la pantalla de "estamos confirmando tu pago" para actualizarse sola cada
+ * pocos segundos: si el pago se aprueba, la clienta lo ve sin recargar la página.
+ */
+export async function consultarEstadoPago(paymentId: string) {
+  try {
+    // Límite por IP: esta acción se llama en bucle desde la pantalla de espera, así
+    // que se protege para que nadie la use para golpear la API de Mercado Pago.
+    const ip = ipDelVisitante(await headers());
+    const limite = limitarIntentos(`estado-pago:${ip}`, 40, 60_000);
+    if (!limite.permitido) {
+      return { status: "", error: "Demasiadas consultas seguidas." };
+    }
+    if (!/^\d+$/.test(paymentId)) {
+      return { status: "", error: "Identificador de pago inválido." };
+    }
+    const r = await confirmMercadoPagoPayment(paymentId);
+    return { status: r.status || "" };
+  } catch (error: unknown) {
+    return { status: "", error: error instanceof Error ? error.message : "Error desconocido" };
+  }
+}
+
 // Confirmar pago de Mercado Pago: actualiza el pedido según el estado recibido.
 // Usa service role si está configurada (para pedidos de invitados); si no, la sesión actual.
 export async function confirmMercadoPagoPayment(paymentId: string) {
@@ -528,16 +553,19 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
       return { success: true, status: info.status, orderId: null };
     }
 
-    // status: approved | pending | in_process | rejected | authorized
-    const paymentStatus =
-      info.status === "approved"
-        ? "paid"
-        : info.status === "rejected"
-        ? "rejected"
-        : "pending";
+    // status: approved | pending | in_process | rejected | refunded | charged_back
+    // Un reembolso NO es un pago pendiente: antes se mostraba como "pendiente", lo
+    // que confundía al panel (parecía que nunca se cobró).
+    const devuelto = info.status === "refunded" || info.status === "charged_back";
+    const paymentStatus = info.status === "approved"
+      ? "paid"
+      : devuelto
+      ? "refunded"
+      : info.status === "rejected"
+      ? "rejected"
+      : "pending";
 
-    const orderStatus =
-      info.status === "approved" ? "work_in_progress" : "placed";
+    const orderStatus = info.status === "approved" ? "work_in_progress" : "placed";
 
     const admin = createAdminClient();
     const supabase = admin ?? (await createClient());
