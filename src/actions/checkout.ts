@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { avisarPedidoPagado } from "@/lib/pushover";
+import { enviarCorreoPedidoPagado } from "@/lib/correo";
 import { revalidatePath } from "next/cache";
 import type { CartItem } from "@/store/cartStore";
 import { createPaymentPreference, getPaymentInfo } from "@/lib/mercadopago";
@@ -585,6 +586,79 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
         codigoPostal: (dir["zip_code"] as string) || undefined,
         esSorpresa: Boolean(dir["esSorpresa"]),
       });
+
+      // ── Correo al CLIENTE (nunca a las dueñas: ellas tienen el panel y el Pushover)
+      try {
+        const correoCliente = String(dir["correoContacto"] || "").trim();
+        if (correoCliente) {
+          const { data: articulos } = await supabase
+            .from("order_items")
+            .select("quantity, unit_price, selected_options, product:products(name)")
+            .eq("order_id", info.externalReference);
+
+          const opcionesLegibles = (opciones: unknown): string[] => {
+            if (!opciones || typeof opciones !== "object") return [];
+            return Object.entries(opciones as Record<string, unknown>)
+              .filter(([, v]) => typeof v === "string" && !String(v).startsWith("data:"))
+              .map(([k, v]) => `${k}: ${String(v)}`)
+              .filter((linea) => linea.length < 160);
+          };
+
+          // Fecha bonita: "sábado 26 de septiembre de 2026"
+          let fechaBonita = String(pedidoPrevio?.delivery_date || "");
+          if (fechaBonita) {
+            const f = new Date(`${fechaBonita}T12:00:00`);
+            if (!isNaN(f.getTime())) {
+              fechaBonita = f.toLocaleDateString("es-MX", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              });
+            }
+          }
+
+          const filas = (articulos || []).map((a) => {
+            const rel = a.product as { name?: string } | { name?: string }[] | null;
+            const nombre = Array.isArray(rel) ? rel[0]?.name : rel?.name;
+            return {
+              nombre: nombre || "Producto",
+              cantidad: Number(a.quantity) || 1,
+              precio: Number(a.unit_price) || 0,
+              opciones: opcionesLegibles(a.selected_options),
+            };
+          });
+
+          const subtotalCorreo = filas.reduce((s, a) => s + a.precio * a.cantidad, 0);
+          const envioCorreo = Number(dir["deliveryFee"] || 0) ||
+            Math.max(0, Number(pedidoPrevio?.total_amount || 0) - subtotalCorreo);
+
+          await enviarCorreoPedidoPagado({
+            numeroPedido: String(info.externalReference).slice(0, 8).toUpperCase(),
+            fecha: new Date().toLocaleDateString("es-MX", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            }),
+            articulos: filas,
+            subtotal: subtotalCorreo,
+            envio: envioCorreo,
+            total: Number(pedidoPrevio?.total_amount || 0),
+            fechaEntrega: fechaBonita,
+            horarioEntrega: (dir["deliveryTime"] as string) || undefined,
+            nombreRecibe: (dir["fullName"] as string) || undefined,
+            telefonoRecibe: (destinatario["telefono"] as string) || undefined,
+            direccion: (dir["streetAddress"] as string) || undefined,
+            municipio: (dir["municipality"] as string) || undefined,
+            esSorpresa: Boolean(dir["esSorpresa"]),
+            correoCliente,
+          });
+        } else {
+          console.warn("[Correo] El pedido no tiene correo de contacto: no se envió confirmación.");
+        }
+      } catch (correoError) {
+        console.error("[Correo] Error al enviar la confirmación del pedido:", correoError);
+      }
     }
 
     revalidatePath("/admin/orders");
