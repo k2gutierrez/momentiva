@@ -119,7 +119,7 @@ export default function AdminCarouselsPage() {
         
         {/* Form Column */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-lilaPastel sticky top-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-lilaPastel lg:sticky lg:top-6">
             <h3 className="text-xl font-bold text-berenjena mb-4 flex items-center gap-2">
               <Plus size={24} className="text-terracota" />
               Nueva Imagen

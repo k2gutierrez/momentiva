@@ -583,7 +583,7 @@ export default function CheckoutPage() {
           {/* Right Summary Column (1 col) */}
           <div className="lg:col-span-1 space-y-6">
             
-            <div className="bg-white p-8 rounded-3xl shadow-sm sticky top-28 space-y-6">
+            <div className="bg-white p-8 rounded-3xl shadow-sm lg:sticky lg:top-28 space-y-6">
               <h3 className="text-xl font-bold text-berenjena pb-3">Resumen del Pedido</h3>
 
               {/* Items List con personalización, fecha y horario */}

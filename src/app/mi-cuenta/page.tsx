@@ -182,7 +182,7 @@ export default function MiCuentaPage() {
           <div className="flex flex-col md:flex-row gap-8 items-start animate-fade-in-up">
 
             {/* MENÚ LATERAL */}
-            <aside className="w-full md:w-1/3 lg:w-1/4 bg-white rounded-3xl shadow-sm overflow-hidden sticky top-24">
+            <aside className="w-full md:w-1/3 lg:w-1/4 bg-white rounded-3xl shadow-sm overflow-hidden md:sticky md:top-24">
               <div className="p-6 bg-cream text-center border-b border-lilaPastel">
                 <div className="w-20 h-20 bg-sage/20 text-sage rounded-full flex items-center justify-center mx-auto mb-4 text-3xl font-bold border-2 border-white shadow-sm">
                   {profile?.full_name?.charAt(0).toUpperCase() || "U"}

@@ -137,7 +137,7 @@ export default function AdminDeliveryZonesPage() {
 
         {/* Columna Izquierda: Carga Masiva */}
         <div className="lg:col-span-1">
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-lilaPastel sticky top-6">
+          <div className="bg-white p-6 rounded-xl shadow-sm border border-lilaPastel lg:sticky lg:top-6">
             <h3 className="text-xl font-bold text-berenjena mb-4">Carga Masiva (CSV)</h3>
 
             <p className="text-sm text-gray-500 mb-6">
