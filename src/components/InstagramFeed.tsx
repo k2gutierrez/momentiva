@@ -59,7 +59,7 @@ export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
           >
             {/* Imagen normal */}
             <img
-              src="/assets/logo-instagram-400.png"
+              src="/assets/logo-instagram-400.svg"
               alt="Momentiva GDL"
               className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0"
             />
