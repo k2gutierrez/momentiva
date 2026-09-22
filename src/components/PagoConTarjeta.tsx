@@ -47,10 +47,15 @@ export default function PagoConTarjeta({
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
 
+  // Los callbacks se guardan en un ref: así el efecto NO se vuelve a ejecutar cuando
+  // el padre se vuelve a dibujar (eso creaba un segundo formulario: se veía duplicado).
+  const callbacks = useRef({ onPagoResuelto, onNoDisponible });
+  callbacks.current = { onPagoResuelto, onNoDisponible };
+
   useEffect(() => {
     const clave = CLAVE_PUBLICA_MERCADO_PAGO;
     if (!clave) {
-      onNoDisponible();
+      callbacks.current.onNoDisponible();
       return;
     }
 
@@ -101,7 +106,7 @@ export default function PagoConTarjeta({
             onError: (e: unknown) => {
               console.error("[PagoBrick] error del componente:", e);
               setError("No se pudo cargar el formulario de tarjeta.");
-              onNoDisponible();
+              callbacks.current.onNoDisponible();
             },
             onSubmit: ({ formData }: { formData: Record<string, unknown> }) =>
               new Promise<void>((resolver, rechazar) => {
@@ -119,7 +124,11 @@ export default function PagoConTarjeta({
                 })
                   .then((r) => {
                     if (r.ok) {
-                      onPagoResuelto({ status: r.status, statusDetail: r.statusDetail || "", paymentId: r.paymentId || "" });
+                      callbacks.current.onPagoResuelto({
+                        status: r.status,
+                        statusDetail: r.statusDetail || "",
+                        paymentId: r.paymentId || "",
+                      });
                       resolver();
                     } else {
                       setError(r.error || "No se pudo procesar el pago.");
@@ -137,7 +146,7 @@ export default function PagoConTarjeta({
         console.error("[PagoBrick] no se pudo inicializar:", e);
         if (!cancelado) {
           setError("No se pudo cargar el formulario de tarjeta.");
-          onNoDisponible();
+          callbacks.current.onNoDisponible();
         }
       }
     };
@@ -151,8 +160,10 @@ export default function PagoConTarjeta({
       } catch {
         /* ignorar */
       }
+      // Se vacía el contenedor para que no queden formularios viejos dibujados
+      if (contenedor.current) contenedor.current.innerHTML = "";
     };
-  }, [orderId, monto, correo, onPagoResuelto, onNoDisponible]);
+  }, [orderId, monto, correo]);
 
   return (
     <div className="bg-white rounded-2xl border border-lilaPastel p-5">

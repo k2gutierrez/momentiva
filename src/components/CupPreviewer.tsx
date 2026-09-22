@@ -6,7 +6,7 @@ import { UploadSimpleIcon, ShoppingCartIcon } from "@phosphor-icons/react/dist/s
 import { useSetAtom } from "jotai";
 import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { entregaSeleccionadaAtom } from "@/store/complementosStore";
-import { useAtomValue } from "jotai";
+import { useAtom, useAtomValue } from "jotai";
 import { toast } from "sonner";
 import { comprimirImagen } from "@/lib/imagen";
 import type { AjusteTaza } from "./CupCanvas";
@@ -33,6 +33,7 @@ export interface ProductoTaza {
 export default function CupPreviewer({
   producto,
   onAgregado,
+  editarId,
 }: {
   producto: ProductoTaza;
   /**
@@ -40,8 +41,12 @@ export default function CupPreviewer({
    * modal de complementos) para que vuelva a la lista de complementos.
    */
   onAgregado?: () => void;
+  /** Si viene, se está EDITANDO este artículo del carrito (se reemplaza). */
+  editarId?: string;
 }) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [carrito] = useAtom(cartItemsAtom);
+  const [cargado, setCargado] = useState(false);
   const [procesando, setProcesando] = useState(false);
   // Vista compuesta: cómo queda la foto dentro de la taza. Se genera sola cada
   // vez que el cliente mueve, escala o gira la imagen.

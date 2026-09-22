@@ -75,15 +75,10 @@ export default function CartDrawer() {
    * salió mal, y tampoco quedan artículos duplicados.
    */
   const editarItem = (item: CartItem) => {
-    setCartItems((prev) => prev.filter((i) => i.cartItemId !== item.cartItemId));
+    // NO se borra: se abre el producto con los datos cargados y al guardar se
+    // reemplaza este mismo artículo.
     setIsOpen(false);
-    toast.success("Ajusta tu producto y agrégalo de nuevo", {
-      action: {
-        label: "Deshacer",
-        onClick: () => setCartItems((prev) => [...prev, item]),
-      },
-    });
-    router.push(`/product/${item.slug}`);
+    router.push(`/product/${item.slug}?editar=${item.cartItemId}`);
   };
 
   // Función para eliminar producto
@@ -178,6 +173,19 @@ export default function CartDrawer() {
                       className="mt-2 text-xs font-bold text-terracota hover:underline"
                     >
                       ✎ Editar{item.customCupImage ? " diseño" : ""}
+                    </button>
+                  )}
+
+                  {/* Borrar (aparte de editar) */}
+                  {(Object.keys(item.selectedOptions || {}).length > 0 ||
+                    item.customCupImage ||
+                    item.deliveryDate) && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.cartItemId)}
+                      className="mt-2 ml-3 text-xs font-bold text-gray-400 hover:text-red-500 hover:underline"
+                    >
+                      🗑 Borrar
                     </button>
                   )}
 

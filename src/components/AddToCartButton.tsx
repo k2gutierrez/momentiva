@@ -21,6 +21,8 @@ interface AddToCartButtonProps {
   blockedDates?: string[];
   /** Si el producto acepta complementos, al agregar se abre el modal. */
   tieneComplementos?: boolean;
+  /** Si viene, se está EDITANDO ese artículo del carrito (se reemplaza). */
+  editarId?: string;
 }
 
 export default function AddToCartButton({
@@ -30,6 +32,7 @@ export default function AddToCartButton({
   deliveryTime,
   blockedDates = [],
   tieneComplementos = false,
+  editarId,
 }: AddToCartButtonProps) {
   const setCart = useSetAtom(cartItemsAtom);
   const setCartOpen = useSetAtom(cartOpenAtom);
@@ -52,6 +55,30 @@ export default function AddToCartButton({
 
     // Firma única: mismo producto con las mismas opciones y misma fecha/horario = sumar cantidad
     const signature = JSON.stringify({ selections: selections || {}, deliveryDate, deliveryTime });
+
+    // MODO EDICIÓN: se reemplaza el artículo que se estaba editando (misma posición)
+    if (editarId) {
+      setCart((prev: CartItem[]) =>
+        prev.map((item) =>
+          item.cartItemId === editarId
+            ? {
+                ...item,
+                productId: product.id,
+                name: product.name,
+                unitPrice: product.price,
+                image: product.image,
+                slug: product.slug,
+                selectedOptions: selections || {},
+                deliveryDate,
+                deliveryTime,
+              }
+            : item
+        )
+      );
+      toast.success("Cambios guardados ✅");
+      setCartOpen(true);
+      return;
+    }
 
     setCart((prev: CartItem[]) => {
       const existing = prev.find(
@@ -105,7 +132,7 @@ export default function AddToCartButton({
       className="w-full bg-[#3A243F] hover:bg-opacity-90 text-white font-bold py-5 rounded-2xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 text-lg mb-4"
     >
       <ShoppingCartIcon size={24} weight="bold" />
-      Agregar al Carrito
+      {editarId ? "Guardar cambios" : "Agregar al Carrito"}
     </button>
   );
 }

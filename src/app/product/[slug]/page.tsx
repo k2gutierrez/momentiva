@@ -14,11 +14,18 @@ import { ShieldCheckIcon, SparkleIcon } from "@phosphor-icons/react/dist/ssr";
 export const dynamic = 'force-dynamic';
 
 // 1. En Next.js 15, params es una Promesa, así que lo tipamos como tal
-export default async function ProductPage({ 
-  params 
-}: { 
-  params: Promise<{ slug: string }> 
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<Record<string, string | undefined>>;
 }) {
+  // Si viene ?editar=<id>, la clienta tocó "Editar" en el carrito: se precargan sus
+  // opciones y al guardar se REEMPLAZA ese artículo (no se duplica ni se borra).
+  const sp = await searchParams;
+  const editarId = typeof sp?.editar === "string" ? sp.editar : undefined;
+
   const supabase = await createClient();
 
   // 2. Usamos await para "desenvolver" el slug antes de usarlo
@@ -191,6 +198,7 @@ export default async function ProductPage({
               anticipationDays={product.anticipation_days || 0}
               blockedDates={blockedDates}
               tieneComplementos={product.is_custom_cup === true && !esProductoComplemento}
+              editarId={editarId}
             />
 
           </div>
@@ -230,6 +238,7 @@ export default async function ProductPage({
                 price: Number(productoTaza.price),
                 image: productoTaza.images?.[0] || null,
               }}
+              editarId={editarId}
             />
           )}
 

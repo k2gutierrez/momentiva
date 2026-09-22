@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
+import { cartItemsAtom } from "@/store/cartStore";
 import { entregaSeleccionadaAtom } from "@/store/complementosStore";
 import AddToCartButton from "./AddToCartButton";
 import DeliveryDateTimePicker from "./DeliveryDateTimePicker";
@@ -29,6 +30,8 @@ interface ProductOptionsFormProps {
   blockedDates?: string[];
   /** Solo los productos con "Complementa tu regalo" activado muestran la pregunta. */
   tieneComplementos?: boolean;
+  /** Si viene, se está EDITANDO ese artículo del carrito. */
+  editarId?: string;
 }
 
 export default function ProductOptionsForm({
@@ -36,9 +39,12 @@ export default function ProductOptionsForm({
   anticipationDays = 0,
   blockedDates = [],
   tieneComplementos = false,
+  editarId,
 }: ProductOptionsFormProps) {
   // Estado para guardar lo que el cliente elige
   const [selections, setSelections] = useState<Record<string, string | boolean | string[]>>({});
+  const [carritoEdicion] = useAtom(cartItemsAtom);
+  const [cargado, setCargado] = useState(false);
   const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
@@ -204,6 +210,7 @@ export default function ProductOptionsForm({
           deliveryTime={deliveryTime}
           blockedDates={blockedDates}
           tieneComplementos={tieneComplementos}
+          editarId={editarId}
         />
       </div>
     </div>

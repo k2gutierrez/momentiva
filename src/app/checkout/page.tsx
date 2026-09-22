@@ -763,35 +763,8 @@ export default function CheckoutPage() {
               </button>
 
               <p className="text-[11px] text-gray-500 text-center leading-relaxed">
-                Serás redirigido a Mercado Pago para completar tu pago de forma segura (tarjeta, OXXO o SPEI).
+                Paga con tarjeta aquí mismo, o con OXXO y SPEI desde Mercado Pago.
               </p>
-              <p className="text-[11px] text-terracota text-center leading-relaxed font-bold bg-[#F5EFF6] rounded-xl px-3 py-2">
-                📱 Si tu celular te pregunta si quieres abrir la app de Mercado Pago,
-                elige <strong>«No permitir»</strong>: así podrás pagar aquí mismo, sin problemas.
-              </p>
-
-            {pagoEnTienda && (
-              <div id="pago-con-tarjeta" className="mt-4 scroll-mt-24">
-                <PagoConTarjeta
-                  orderId={pagoEnTienda.orderId}
-                  monto={pagoEnTienda.monto}
-                  correo={pagoEnTienda.correo}
-                  onPagoResuelto={({ status, paymentId }) => {
-                    const destino =
-                      status === "approved"
-                        ? `/pago/exito?payment_id=${paymentId}`
-                        : `/pago/pendiente?payment_id=${paymentId}`;
-                    window.location.href = destino;
-                  }}
-                  onNoDisponible={() => {
-                    // Respaldo: si el formulario no carga, se paga con la redirección
-                    window.location.href = pagoEnTienda.initPoint;
-                  }}
-                />
-              </div>
-            )}
-
-
 
             </div>
 
@@ -799,6 +772,34 @@ export default function CheckoutPage() {
 
         </div>
       </main>
+
+      {/* Pago con tarjeta: en una sección de ANCHO COMPLETO.
+          Antes iba dentro de la columna angosta del resumen y en el celular el
+          formulario se cortaba y se dibujaba dos veces. */}
+      {pagoEnTienda && (
+        <section className="w-full bg-cream pb-16">
+          <div className="max-w-3xl mx-auto px-4">
+            <div id="pago-con-tarjeta" className="scroll-mt-24">
+              <PagoConTarjeta
+                orderId={pagoEnTienda.orderId}
+                monto={pagoEnTienda.monto}
+                correo={pagoEnTienda.correo}
+                onPagoResuelto={({ status, paymentId }) => {
+                  const destino =
+                    status === "approved"
+                      ? `/pago/exito?payment_id=${paymentId}`
+                      : `/pago/pendiente?payment_id=${paymentId}`;
+                  window.location.href = destino;
+                }}
+                onNoDisponible={() => {
+                  // Respaldo: si el formulario no carga, se paga con la redirección
+                  window.location.href = pagoEnTienda.initPoint;
+                }}
+              />
+            </div>
+          </div>
+        </section>
+      )}
     </div>
   );
 }
