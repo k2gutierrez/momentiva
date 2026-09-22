@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import Link from "next/link";
 import { useAtom, useSetAtom } from "jotai";
 import { toast } from "sonner";
-import { ShoppingCartIcon, SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr";
-import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
+import { ShoppingCartIcon, SlidersHorizontalIcon, CheckIcon } from "@phosphor-icons/react/dist/ssr";
+import { cartItemsAtom, type CartItem } from "@/store/cartStore";
 import { entregaSeleccionadaAtom } from "@/store/complementosStore";
+import { agregarComplemento } from "@/lib/complementosCliente";
 
 export interface Complemento {
   id: string;
@@ -26,64 +27,18 @@ export interface Complemento {
  */
 export default function ComplementosGrid({ complementos }: { complementos: Complemento[] }) {
   const setCart = useSetAtom(cartItemsAtom);
-  const setCartOpen = useSetAtom(cartOpenAtom);
   const [entrega] = useAtom(entregaSeleccionadaAtom);
+  const [agregados, setAgregados] = useState<string[]>([]);
 
   const agregar = (comp: Complemento) => {
     if (!entrega.fecha || !entrega.hora) {
-      toast.error(
-        "Primero elige la fecha y el horario de entrega del producto de arriba."
-      );
-      document
-        .getElementById("complementa-tu-regalo")
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      toast.error("Primero elige la fecha y el horario de entrega del producto de arriba.");
       return;
     }
-
-    setCart((prev: CartItem[]) => {
-      const firma = {
-        selections: {},
-        deliveryDate: entrega.fecha,
-        deliveryTime: entrega.hora,
-      };
-      const existente = prev.find(
-        (item) =>
-          item.productId === comp.id &&
-          JSON.stringify({
-            selections: item.selectedOptions || {},
-            deliveryDate: item.deliveryDate,
-            deliveryTime: item.deliveryTime,
-          }) === JSON.stringify(firma)
-      );
-
-      if (existente) {
-        return prev.map((item) =>
-          item.cartItemId === existente.cartItemId
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      }
-
-      return [
-        ...prev,
-        {
-          cartItemId: `${comp.id}-${Date.now()}`,
-          productId: comp.id,
-          name: comp.name,
-          unitPrice: Number(comp.price),
-          quantity: 1,
-          image: comp.images?.[0] || "/placeholder.png",
-          slug: comp.slug,
-          selectedOptions: {},
-          // Hereda la entrega del producto principal
-          deliveryDate: entrega.fecha,
-          deliveryTime: entrega.hora,
-        },
-      ];
-    });
-
+    setCart((prev: CartItem[]) => agregarComplemento(prev, comp, entrega));
+    setAgregados((prev) => (prev.includes(comp.id) ? prev : [...prev, comp.id]));
+    // A propósito NO se abre el carrito: así se pueden agregar 2 o 3 seguidos.
     toast.success(`${comp.name} agregado a tu pedido`);
-    setCartOpen(true);
   };
 
   if (complementos.length === 0) return null;
@@ -133,9 +88,21 @@ export default function ComplementosGrid({ complementos }: { complementos: Compl
                 <button
                   type="button"
                   onClick={() => agregar(comp)}
-                  className="mt-auto w-full flex items-center justify-center gap-2 bg-terracota text-white text-xs font-bold py-2.5 rounded-lg hover:opacity-90 transition-opacity"
+                  className={`mt-auto w-full flex items-center justify-center gap-2 text-xs font-bold py-2.5 rounded-lg transition-opacity ${
+                    agregados.includes(comp.id)
+                      ? "bg-sage/25 text-sage"
+                      : "bg-terracota text-white hover:opacity-90"
+                  }`}
                 >
-                  <ShoppingCartIcon size={16} weight="bold" /> Agregar
+                  {agregados.includes(comp.id) ? (
+                    <>
+                      <CheckIcon size={16} weight="bold" /> Agregado
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCartIcon size={16} weight="bold" /> Agregar
+                    </>
+                  )}
                 </button>
               )}
             </div>

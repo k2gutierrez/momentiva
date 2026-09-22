@@ -1,11 +1,17 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
 import { cartItemsAtom, cartOpenAtom } from "@/store/cartStore";
 import { XIcon, MinusIcon, PlusIcon, ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { toast } from "sonner";
+import { PlusCircleIcon, SparkleIcon } from "@phosphor-icons/react/dist/ssr";
+import {
+  traerComplementos,
+  agregarComplemento,
+  type ComplementoSugerido,
+} from "@/lib/complementosCliente";
 
 export default function CartDrawer() {
   const [isOpen, setIsOpen] = useAtom(cartOpenAtom);
@@ -13,6 +19,40 @@ export default function CartDrawer() {
 
   // Calcula el subtotal
   const subtotal = cartItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
+
+  // ── Complementos sugeridos dentro del carrito ──
+  // Antes había que cerrar el carrito, volver al producto y agregar desde ahí. Ahora
+  // se ofrecen aquí mismo, con la misma fecha y hora de entrega del pedido.
+  const [sugeridos, setSugeridos] = useState<ComplementoSugerido[]>([]);
+  const entregaCarrito = {
+    fecha: cartItems.find((i) => i.deliveryDate)?.deliveryDate || "",
+    hora: cartItems.find((i) => i.deliveryTime)?.deliveryTime || "",
+  };
+
+  useEffect(() => {
+    if (!isOpen || cartItems.length === 0) return;
+    let vivo = true;
+    traerComplementos()
+      .then((lista) => {
+        if (!vivo) return;
+        const yaEnCarrito = new Set(cartItems.map((i) => i.productId));
+        setSugeridos(lista.filter((c) => !yaEnCarrito.has(c.id)).slice(0, 6));
+      })
+      .catch(() => {});
+    return () => {
+      vivo = false;
+    };
+  }, [isOpen, cartItems]);
+
+  const agregarSugerido = (comp: ComplementoSugerido) => {
+    if (!entregaCarrito.fecha || !entregaCarrito.hora) {
+      toast.error("Primero elige la fecha y el horario de entrega del producto.");
+      return;
+    }
+    setCartItems((prev) => agregarComplemento(prev, comp, entregaCarrito));
+    setSugeridos((prev) => prev.filter((c) => c.id !== comp.id));
+    toast.success(`${comp.name} agregado a tu pedido`);
+  };
 
   const handleClose = () => setIsOpen(false);
 
@@ -74,7 +114,7 @@ export default function CartDrawer() {
               <div key={item.cartItemId} className="flex gap-4 p-4 rounded-2xl bg-white shadow-sm">
                 
                 <img 
-                  src={item.image} 
+                  src={item.image || "/placeholder.png"} 
                   alt={item.name} 
                   className="w-20 h-20 object-cover rounded-xl" 
                 />
@@ -126,6 +166,50 @@ export default function CartDrawer() {
             ))
           )}
         </div>
+
+        {/* Complementa tu regalo: se agregan sin salir del carrito */}
+        {cartItems.length > 0 && sugeridos.length > 0 && (
+          <div className="px-6 pb-4 border-t border-lilaPastel/60 pt-4">
+            <h3 className="flex items-center gap-2 text-sm font-bold text-[#3A243F] mb-3">
+              <SparkleIcon size={16} weight="fill" className="text-terracota" />
+              Complementa tu regalo
+            </h3>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {sugeridos.map((comp) => (
+                <div
+                  key={comp.id}
+                  className="flex-shrink-0 w-28 rounded-2xl bg-white shadow-sm border border-lilaPastel/60 overflow-hidden"
+                >
+                  <div className="h-20 bg-cream">
+                    {comp.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={comp.images[0]} alt={comp.name} className="w-full h-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-[10px] text-sage font-bold">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-2 text-center">
+                    <p className="text-[11px] font-bold text-[#3A243F] leading-tight line-clamp-2 h-7">
+                      {comp.name}
+                    </p>
+                    <p className="text-terracota text-xs font-bold mt-1">
+                      ${Number(comp.price).toFixed(2)}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => agregarSugerido(comp)}
+                      className="mt-1 w-full flex items-center justify-center gap-1 bg-terracota text-white text-[11px] font-bold py-1.5 rounded-lg hover:opacity-90 transition-opacity"
+                    >
+                      <PlusCircleIcon size={13} weight="bold" /> Agregar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Pie del Cajón (Total y Botón de Pago) */}
         {cartItems.length > 0 && (
