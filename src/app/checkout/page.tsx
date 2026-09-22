@@ -66,6 +66,19 @@ export default function CheckoutPage() {
     correo: string;
   } | null>(null);
 
+  // Al aparecer el formulario de tarjeta, la página se desplaza hasta él: antes se
+  // quedaba arriba y la clienta no lo encontraba.
+  useEffect(() => {
+    if (!pagoEnTienda) return;
+    const t2 = setTimeout(() => {
+      document
+        .getElementById("pago-con-tarjeta")
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 400);
+    return () => clearTimeout(t2);
+  }, [pagoEnTienda]);
+
+
   const [fullName, setFullName] = useState(() => profile?.full_name || "");
   const [phone, setPhone] = useState(() => profile?.phone || "");
   const [streetAddress, setStreetAddress] = useState(() => profile?.address || "");
@@ -412,27 +425,6 @@ export default function CheckoutPage() {
             </div>
 
             {/* 2. DELIVERY ADDRESS & DATE */}
-            {pagoEnTienda && (
-              <div className="mb-6">
-                <PagoConTarjeta
-                  orderId={pagoEnTienda.orderId}
-                  monto={pagoEnTienda.monto}
-                  correo={pagoEnTienda.correo}
-                  onPagoResuelto={({ status, paymentId }) => {
-                    const destino =
-                      status === "approved"
-                        ? `/pago/exito?payment_id=${paymentId}`
-                        : `/pago/pendiente?payment_id=${paymentId}`;
-                    window.location.href = destino;
-                  }}
-                  onNoDisponible={() => {
-                    // Respaldo: si el formulario no carga, se paga con la redirección
-                    window.location.href = pagoEnTienda.initPoint;
-                  }}
-                />
-              </div>
-            )}
-
             <form id="checkout-form" onSubmit={handlePlaceOrder} className="bg-white p-8 rounded-3xl shadow-sm space-y-6">
               <h3 className="text-xl font-bold text-berenjena flex items-center gap-2 pb-3">
                 <CalendarBlankIcon size={24} className="text-terracota" />
@@ -777,6 +769,29 @@ export default function CheckoutPage() {
                 📱 Si tu celular te pregunta si quieres abrir la app de Mercado Pago,
                 elige <strong>«No permitir»</strong>: así podrás pagar aquí mismo, sin problemas.
               </p>
+
+            {pagoEnTienda && (
+              <div id="pago-con-tarjeta" className="mt-4 scroll-mt-24">
+                <PagoConTarjeta
+                  orderId={pagoEnTienda.orderId}
+                  monto={pagoEnTienda.monto}
+                  correo={pagoEnTienda.correo}
+                  onPagoResuelto={({ status, paymentId }) => {
+                    const destino =
+                      status === "approved"
+                        ? `/pago/exito?payment_id=${paymentId}`
+                        : `/pago/pendiente?payment_id=${paymentId}`;
+                    window.location.href = destino;
+                  }}
+                  onNoDisponible={() => {
+                    // Respaldo: si el formulario no carga, se paga con la redirección
+                    window.location.href = pagoEnTienda.initPoint;
+                  }}
+                />
+              </div>
+            )}
+
+
 
             </div>
 

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { avisarPedidoPagado } from "@/lib/pushover";
 import { revalidatePath } from "next/cache";
 import type { CartItem } from "@/store/cartStore";
 import { createPaymentPreference, getPaymentInfo } from "@/lib/mercadopago";
@@ -468,38 +469,8 @@ export async function processCheckoutOrder(orderData: {
       }
     }
 
-    // 6. Notificación Pushover a las dueñas
-    const pushoverUserKey = process.env.PUSHOVER_USER_KEY;
-    const pushoverAppToken = process.env.PUSHOVER_APP_TOKEN;
-
-    if (pushoverUserKey && pushoverAppToken) {
-      try {
-        await fetch("https://api.pushover.net/1/messages.json", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            token: pushoverAppToken,
-            user: pushoverUserKey,
-            title: "🎉 ¡Nuevo Pedido en Momentiva!",
-            message:
-              `Entrega: ${orderData.deliveryAddress.fullName || "cliente"}` +
-              (orderData.deliveryAddress.destinatario?.telefono
-                ? ` (${orderData.deliveryAddress.destinatario.telefono})`
-                : "") +
-              `\nEnvía: ${orderData.deliveryAddress.remitente?.nombre || "—"}` +
-              (orderData.deliveryAddress.remitente?.telefono
-                ? ` (${orderData.deliveryAddress.remitente.telefono})`
-                : "") +
-              `\nTotal: $${totalServidor.toFixed(2)} MXN\nFecha: ${orderData.deliveryDate}` +
-              (orderData.deliveryAddress.deliveryTime ? ` · ${orderData.deliveryAddress.deliveryTime}` : "") +
-              `\nC.P.: ${orderData.deliveryZipCode}` +
-              (orderData.deliveryAddress.esSorpresa ? "\n🎁 REGALO SORPRESA" : ""),
-          }),
-        });
-      } catch (pErr) {
-        console.error("Error sending Pushover notification:", pErr);
-      }
-    }
+    // (El aviso al celular se manda cuando el pago se APRUEBA, no al crear
+    //  el pedido: ver confirmMercadoPagoPayment.)
 
     revalidatePath("/admin/orders");
     return {
@@ -578,6 +549,16 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
     const admin = createAdminClient();
     const supabase = admin ?? (await createClient());
 
+    // Se lee el pedido ANTES de actualizarlo: así sabemos si ya estaba pagado y no
+    // repetimos el aviso al celular si Mercado Pago notifica varias veces.
+    const { data: pedidoPrevio } = await supabase
+      .from("orders")
+      .select("payment_status, total_amount, delivery_address, delivery_date")
+      .eq("id", info.externalReference)
+      .maybeSingle();
+
+    const yaEstabaPagado = pedidoPrevio?.payment_status === "paid";
+
     const { error } = await supabase
       .from("orders")
       .update({
@@ -587,6 +568,24 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
       .eq("id", info.externalReference);
 
     if (error) throw new Error(error.message);
+
+    // Aviso al celular SOLO cuando el pago se aprueba (una sola vez)
+    if (info.status === "approved" && !yaEstabaPagado) {
+      const dir = (pedidoPrevio?.delivery_address || {}) as Record<string, unknown>;
+      const destinatario = (dir["destinatario"] || {}) as Record<string, unknown>;
+      const remitente = (dir["remitente"] || {}) as Record<string, unknown>;
+      await avisarPedidoPagado({
+        total: Number(pedidoPrevio?.total_amount || 0),
+        nombreRecibe: (dir["fullName"] as string) || undefined,
+        telefonoRecibe: (destinatario["telefono"] as string) || undefined,
+        nombreEnvia: (remitente["nombre"] as string) || undefined,
+        telefonoEnvia: (remitente["telefono"] as string) || undefined,
+        fecha: String(pedidoPrevio?.delivery_date || ""),
+        horario: (dir["deliveryTime"] as string) || undefined,
+        codigoPostal: (dir["zip_code"] as string) || undefined,
+        esSorpresa: Boolean(dir["esSorpresa"]),
+      });
+    }
 
     revalidatePath("/admin/orders");
     revalidatePath("/mi-cuenta");
