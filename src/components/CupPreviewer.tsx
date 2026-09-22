@@ -30,7 +30,17 @@ export interface ProductoTaza {
   image?: string | null;
 }
 
-export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
+export default function CupPreviewer({
+  producto,
+  onAgregado,
+}: {
+  producto: ProductoTaza;
+  /**
+   * Si se pasa, la taza NO abre el carrito al agregarse: avisa al contenedor (el
+   * modal de complementos) para que vuelva a la lista de complementos.
+   */
+  onAgregado?: () => void;
+}) {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [procesando, setProcesando] = useState(false);
   // Vista compuesta: cómo queda la foto dentro de la taza. Se genera sola cada
@@ -93,7 +103,12 @@ export default function CupPreviewer({ producto }: { producto: ProductoTaza }) {
         ? "Taza añadida a tu pedido con su diseño"
         : "Taza añadida a tu pedido"
     );
-    setCartOpen(true);
+    // Dentro del modal de complementos, el contenedor decide qué hacer después.
+    if (onAgregado) {
+      onAgregado();
+    } else {
+      setCartOpen(true);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

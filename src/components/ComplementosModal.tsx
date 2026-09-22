@@ -9,6 +9,7 @@ import {
   PlusCircleIcon,
   ShoppingCartIcon,
   ArrowRightIcon,
+  ArrowLeftIcon,
   SparkleIcon,
   SlidersHorizontalIcon,
   CircleNotchIcon,
@@ -16,14 +17,22 @@ import {
 } from "@phosphor-icons/react/dist/ssr";
 import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { complementosModalAbiertoAtom, entregaSeleccionadaAtom } from "@/store/complementosStore";
-import { traerComplementos, agregarComplemento, type ComplementoSugerido } from "@/lib/complementosCliente";
+import {
+  traerComplementos,
+  agregarComplemento,
+  esTazaPersonalizada,
+  type ComplementoSugerido,
+} from "@/lib/complementosCliente";
+import CupPreviewer from "@/components/CupPreviewer";
 
 /**
  * Modal de complementos (estilo enviaflores).
  *
- * Se abre al agregar al carrito un producto que acepta complementos: ahí mismo se
- * ofrecen, se agregan y se puede seguir con otro. Al terminar, la clienta decide
- * entre ir al carrito o seguir comprando.
+ * Flujo: al agregar al carrito un producto que acepta complementos se abre este
+ * modal con la LISTA. Al elegir uno, el mismo modal cambia a su DETALLE (con su
+ * información y, si es la taza, su personalizador completo). Al agregarlo, vuelve a
+ * la lista sin el que ya se agregó. Siempre se puede ir al carrito o seguir
+ * comprando.
  */
 export default function ComplementosModal() {
   const [abierto, setAbierto] = useAtom(complementosModalAbiertoAtom);
@@ -35,12 +44,14 @@ export default function ComplementosModal() {
   const [complementos, setComplementos] = useState<ComplementoSugerido[]>([]);
   const [agregados, setAgregados] = useState<string[]>([]);
   const [cargando, setCargando] = useState(false);
+  const [seleccionado, setSeleccionado] = useState<ComplementoSugerido | null>(null);
 
-  // Al abrir, se cargan los complementos disponibles
+  // Al abrir, se cargan los complementos y se vuelve a la lista
   useEffect(() => {
     if (!abierto) return;
     let vivo = true;
     setCargando(true);
+    setSeleccionado(null);
     traerComplementos()
       .then((lista) => {
         if (!vivo) return;
@@ -59,45 +70,58 @@ export default function ComplementosModal() {
   if (!abierto) return null;
 
   const cerrar = () => setAbierto(false);
+  const irAlCarrito = () => {
+    setAbierto(false);
+    setCarritoAbierto(true);
+  };
+  const seguirComprando = () => {
+    setAbierto(false);
+    router.push("/");
+  };
 
-  const agregar = (comp: ComplementoSugerido) => {
+  /** Marca el complemento como agregado y regresa a la lista. */
+  const despuesDeAgregar = (comp: ComplementoSugerido, mensaje?: string) => {
+    setAgregados((prev) => (prev.includes(comp.id) ? prev : [...prev, comp.id]));
+    setSeleccionado(null);
+    if (mensaje) toast.success(mensaje);
+  };
+
+  const agregarSimple = (comp: ComplementoSugerido) => {
     if (!entrega.fecha || !entrega.hora) {
       toast.error("Primero elige la fecha y el horario de entrega.");
       return;
     }
     setCarrito((prev: CartItem[]) => agregarComplemento(prev, comp, entrega));
-    setAgregados((prev) => [...prev, comp.id]);
-    toast.success(`${comp.name} agregado a tu pedido`);
-  };
-
-  const irAlCarrito = () => {
-    setAbierto(false);
-    setCarritoAbierto(true);
-  };
-
-  const seguirComprando = () => {
-    setAbierto(false);
-    router.push("/");
+    despuesDeAgregar(comp, `${comp.name} agregado a tu pedido`);
   };
 
   const disponibles = complementos.filter((c) => !agregados.includes(c.id));
 
   return (
     <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center">
-      {/* Fondo */}
       <div className="absolute inset-0 bg-[#3A243F]/50 backdrop-blur-sm" onClick={cerrar} />
 
-      {/* Panel */}
       <div className="relative w-full sm:max-w-2xl max-h-[92vh] bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col animate-fade-in-up">
         {/* Cabecera */}
         <div className="flex items-start justify-between gap-4 p-5 sm:p-6 border-b border-lilaPastel">
-          <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-[#3A243F] flex items-center gap-2">
-              <SparkleIcon size={22} weight="fill" className="text-terracota" />
-              ¿Quieres agregar algo más?
-            </h2>
+          <div className="min-w-0">
+            {seleccionado ? (
+              <button
+                onClick={() => setSeleccionado(null)}
+                className="flex items-center gap-1.5 text-sm font-bold text-terracota hover:underline mb-2"
+              >
+                <ArrowLeftIcon size={16} weight="bold" /> Volver a los complementos
+              </button>
+            ) : (
+              <h2 className="text-xl sm:text-2xl font-bold text-[#3A243F] flex items-center gap-2">
+                <SparkleIcon size={22} weight="fill" className="text-terracota" />
+                ¿Quieres agregar algo más?
+              </h2>
+            )}
             <p className="text-sm text-gray-500 mt-1">
-              Suma detalles a tu regalo. Puedes elegir los que quieras.
+              {seleccionado
+                ? seleccionado.name
+                : "Suma detalles a tu regalo. Puedes elegir los que quieras."}
             </p>
           </div>
           <button
@@ -111,7 +135,73 @@ export default function ComplementosModal() {
 
         {/* Contenido */}
         <div className="flex-1 overflow-y-auto p-5 sm:p-6">
-          {cargando ? (
+          {seleccionado ? (
+            /* ── DETALLE del complemento elegido ── */
+            esTazaPersonalizada(seleccionado) ? (
+              /* La taza: personalizador completo dentro del modal */
+              <div className="-mx-5 sm:mx-0">
+                <CupPreviewer
+                  producto={{
+                    id: seleccionado.id,
+                    name: seleccionado.name,
+                    slug: seleccionado.slug,
+                    price: Number(seleccionado.price),
+                    image: seleccionado.images?.[0] || null,
+                  }}
+                  onAgregado={() =>
+                    despuesDeAgregar(seleccionado, "Taza añadida a tu pedido con su diseño")
+                  }
+                />
+              </div>
+            ) : (
+              /* Complemento normal: su información y agregar */
+              <div className="max-w-md mx-auto text-center">
+                <div className="aspect-square bg-cream/70 rounded-2xl flex items-center justify-center p-4 mb-4">
+                  {seleccionado.images?.[0] ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={seleccionado.images[0]}
+                      alt={seleccionado.name}
+                      className="w-full h-full object-contain"
+                    />
+                  ) : (
+                    <span className="text-xs text-sage font-bold">Sin imagen</span>
+                  )}
+                </div>
+                <h3 className="text-xl font-bold text-[#3A243F]">{seleccionado.name}</h3>
+                <p className="text-2xl font-bold text-terracota mt-1">
+                  ${Number(seleccionado.price).toFixed(2)}
+                </p>
+                {seleccionado.description && (
+                  <p className="text-sm text-gray-600 mt-3 leading-relaxed">
+                    {seleccionado.description}
+                  </p>
+                )}
+
+                {Array.isArray(seleccionado.custom_options) &&
+                seleccionado.custom_options.length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      cerrar();
+                      router.push(`/product/${seleccionado.slug}`);
+                    }}
+                    className="mt-5 w-full flex items-center justify-center gap-2 bg-[#F5EFF6] text-[#3A243F] font-bold py-4 rounded-xl hover:bg-terracota hover:text-white transition-colors"
+                  >
+                    <SlidersHorizontalIcon size={20} weight="bold" /> Elegir sus opciones
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => agregarSimple(seleccionado)}
+                    className="mt-5 w-full flex items-center justify-center gap-2 bg-terracota text-white font-bold py-4 rounded-xl shadow-md hover:opacity-90 transition-opacity"
+                  >
+                    <PlusCircleIcon size={20} weight="bold" /> Agregar al carrito
+                  </button>
+                )}
+              </div>
+            )
+          ) : cargando ? (
             <div className="flex items-center justify-center gap-2 text-gray-500 py-12">
               <CircleNotchIcon size={20} className="animate-spin text-terracota" />
               Cargando complementos…
@@ -120,7 +210,9 @@ export default function ComplementosModal() {
             <div className="text-center py-10">
               <CheckCircleIcon size={44} weight="fill" className="text-sage mx-auto mb-3" />
               <p className="font-bold text-[#3A243F]">
-                {agregados.length > 0 ? "¡Listo! Ya agregaste lo que querías" : "No hay complementos disponibles"}
+                {agregados.length > 0
+                  ? "¡Listo! Ya agregaste lo que querías"
+                  : "No hay complementos disponibles"}
               </p>
               <p className="text-sm text-gray-500 mt-1">
                 {agregados.length > 0
@@ -129,60 +221,48 @@ export default function ComplementosModal() {
               </p>
             </div>
           ) : (
+            /* ── LISTA de complementos ── */
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {disponibles.map((comp) => {
-                const necesitaOpciones =
-                  Array.isArray(comp.custom_options) && comp.custom_options.length > 0;
-
-                return (
-                  <div
-                    key={comp.id}
-                    className="flex flex-col rounded-2xl border border-lilaPastel/70 overflow-hidden bg-white shadow-sm"
-                  >
-                    <div className="aspect-square bg-cream/70 flex items-center justify-center p-2">
-                      {comp.images?.[0] ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={comp.images[0]}
-                          alt={comp.name}
-                          className="w-full h-full object-contain"
-                        />
-                      ) : (
-                        <span className="text-xs text-sage font-bold">Sin imagen</span>
-                      )}
-                    </div>
-                    <div className="p-3 flex flex-col flex-1 text-center">
-                      <p className="text-xs font-bold text-[#3A243F] leading-tight flex-1">
-                        {comp.name}
-                      </p>
-                      <p className="text-terracota font-bold text-sm mt-1">
-                        ${Number(comp.price).toFixed(2)}
-                      </p>
-
-                      {necesitaOpciones ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            cerrar();
-                            router.push(`/product/${comp.slug}`);
-                          }}
-                          className="mt-2 w-full flex items-center justify-center gap-1.5 bg-[#F5EFF6] text-[#3A243F] text-xs font-bold py-2 rounded-lg hover:bg-terracota hover:text-white transition-colors"
-                        >
-                          <SlidersHorizontalIcon size={14} weight="bold" /> Personalizar
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => agregar(comp)}
-                          className="mt-2 w-full flex items-center justify-center gap-1.5 bg-terracota text-white text-xs font-bold py-2 rounded-lg hover:opacity-90 transition-opacity"
-                        >
-                          <PlusCircleIcon size={14} weight="bold" /> Agregar
-                        </button>
-                      )}
-                    </div>
+              {disponibles.map((comp) => (
+                <button
+                  key={comp.id}
+                  type="button"
+                  onClick={() => setSeleccionado(comp)}
+                  className="flex flex-col rounded-2xl border border-lilaPastel/70 overflow-hidden bg-white shadow-sm hover:shadow-md hover:border-terracota transition-all text-left"
+                >
+                  <div className="aspect-square bg-cream/70 flex items-center justify-center p-2">
+                    {comp.images?.[0] ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={comp.images[0]}
+                        alt={comp.name}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <span className="text-xs text-sage font-bold">Sin imagen</span>
+                    )}
                   </div>
-                );
-              })}
+                  <div className="p-3 flex flex-col flex-1 text-center">
+                    <p className="text-xs font-bold text-[#3A243F] leading-tight flex-1">
+                      {comp.name}
+                    </p>
+                    <p className="text-terracota font-bold text-sm mt-1">
+                      ${Number(comp.price).toFixed(2)}
+                    </p>
+                    <span className="mt-2 w-full flex items-center justify-center gap-1.5 bg-terracota text-white text-xs font-bold py-2 rounded-lg">
+                      {esTazaPersonalizada(comp) ? (
+                        <>
+                          <SlidersHorizontalIcon size={14} weight="bold" /> Personalizar
+                        </>
+                      ) : (
+                        <>
+                          <PlusCircleIcon size={14} weight="bold" /> Ver y agregar
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </button>
+              ))}
             </div>
           )}
         </div>

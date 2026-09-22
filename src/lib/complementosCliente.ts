@@ -11,7 +11,14 @@ export type ComplementoSugerido = {
   price: number;
   images: string[] | null;
   custom_options?: unknown;
+  description?: string | null;
+  is_custom_cup?: boolean | null;
 };
+
+/** La taza personalizada necesita su configurador (subir foto y ajustar). */
+export function esTazaPersonalizada(c: { name?: string | null; is_custom_cup?: boolean | null }) {
+  return Boolean(c.is_custom_cup) && /taza/i.test(String(c.name || ""));
+}
 
 /**
  * Trae los productos de la categoría "Complementa tu regalo".
@@ -35,7 +42,7 @@ export async function traerComplementos(): Promise<ComplementoSugerido[]> {
     // Solo columnas públicas: el costo interno (raw_cost) no es legible desde aquí.
     const { data } = await supabase
       .from("products")
-      .select("id, name, slug, price, images, custom_options, category_id, is_active")
+      .select("id, name, slug, price, images, custom_options, category_id, is_active, description, is_custom_cup")
       .eq("is_active", true)
       .order("created_at", { ascending: false });
 
@@ -48,6 +55,8 @@ export async function traerComplementos(): Promise<ComplementoSugerido[]> {
         price: Number(p.price),
         images: Array.isArray(p.images) ? (p.images as string[]) : null,
         custom_options: p.custom_options,
+        description: p.description ?? null,
+        is_custom_cup: p.is_custom_cup ?? null,
       }));
   } catch {
     return [];
