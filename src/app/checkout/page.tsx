@@ -48,6 +48,11 @@ export default function CheckoutPage() {
   // Address fields (prellenados con los datos del perfil si hay sesión iniciada)
   // Quien RECIBE el regalo (fullName/phone/streetAddress se conservan con estos
   // nombres para no romper pedidos ni vistas anteriores).
+  // Correo de contacto: sirve para el comprobante y para poder ligar el pedido a la
+  // cuenta de la clienta (antes, quien pagaba como invitada y luego creaba su cuenta
+  // no encontraba su pedido por ningún lado).
+  const [correo, setCorreo] = useState("");
+
   const [fullName, setFullName] = useState(() => profile?.full_name || "");
   const [phone, setPhone] = useState(() => profile?.phone || "");
   const [streetAddress, setStreetAddress] = useState(() => profile?.address || "");
@@ -216,6 +221,8 @@ export default function CheckoutPage() {
         notes,
         // Datos completos de envío
         remitente: { nombre: senderName, telefono: senderPhone },
+        // Con esto se puede ligar el pedido a la cuenta de la clienta
+        correoContacto: correo.trim().toLowerCase(),
         destinatario: { nombre: fullName, telefono: phone, direccion: streetAddress },
         esSorpresa,
         municipality: deliveryZone.municipality,
@@ -413,6 +420,21 @@ export default function CheckoutPage() {
                       placeholder="33 1234 5678"
                       className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
                     />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-bold text-berenjena mb-1">Tu correo electrónico</label>
+                    <input
+                      type="email"
+                      required
+                      value={correo}
+                      onChange={(e) => setCorreo(e.target.value)}
+                      placeholder="tucorreo@ejemplo.com"
+                      className="w-full px-4 py-3 border border-lilaPastel rounded-xl bg-white text-berenjena focus:outline-none focus:ring-2 focus:ring-terracota"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Ahí te enviamos el comprobante. Si ya tienes cuenta con este correo, tu pedido
+                      aparecerá en <strong>Mi cuenta</strong>.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -704,6 +726,10 @@ export default function CheckoutPage() {
 
               <p className="text-[11px] text-gray-500 text-center leading-relaxed">
                 Serás redirigido a Mercado Pago para completar tu pago de forma segura (tarjeta, OXXO o SPEI).
+              </p>
+              <p className="text-[11px] text-terracota text-center leading-relaxed font-bold bg-[#F5EFF6] rounded-xl px-3 py-2">
+                📱 Si tu celular te pregunta si quieres abrir la app de Mercado Pago,
+                elige <strong>«No permitir»</strong>: así podrás pagar aquí mismo, sin problemas.
               </p>
 
             </div>

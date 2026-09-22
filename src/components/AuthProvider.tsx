@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useSetAtom } from "jotai";
 import { userAtom, userProfileAtom } from "@/store/authStore";
 import { createClient } from "@/lib/supabase/client";
+import { vincularMisPedidos } from "@/actions/cuenta";
+import { toast } from "sonner";
 
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
   const setUser = useSetAtom(userAtom);
@@ -16,6 +18,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const getInitialUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       setUser(user);
+
+      // Si compró como invitada con este correo, su pedido se liga a su cuenta.
+      if (user?.email) {
+        vincularMisPedidos()
+          .then((r) => {
+            if (r?.vinculados) toast.success("Ligamos tu pedido a tu cuenta ✅");
+          })
+          .catch(() => {});
+      }
 
       if (user) {
         const { data: profile, error } = await supabase
@@ -42,6 +53,15 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       const currentUser = session?.user || null;
       setUser(currentUser);
+
+      // Recién iniciada la sesión: se ligan los pedidos que hizo como invitada.
+      if (event === "SIGNED_IN" && currentUser?.email) {
+        vincularMisPedidos()
+          .then((r) => {
+            if (r?.vinculados) toast.success("Ligamos tu pedido a tu cuenta ✅");
+          })
+          .catch(() => {});
+      }
 
       if (currentUser) {
         const { data: profile, error } = await supabase

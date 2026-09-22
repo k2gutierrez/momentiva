@@ -25,6 +25,8 @@ export interface CheckoutDeliveryAddress {
   destinatario?: { nombre?: string; telefono?: string; direccion?: string };
   /** El cliente marcó que es un regalo sorpresa. */
   esSorpresa?: boolean;
+  /** Correo de contacto: sirve para el comprobante y para ligar el pedido a la cuenta. */
+  correoContacto?: string | null;
 }
 
 // Bucket PRIVADO donde viven las fotos que sube el cliente (fotos de personas).
@@ -354,6 +356,12 @@ export async function processCheckoutOrder(orderData: {
       delivery_address: {
         ...orderData.deliveryAddress,
         zip_code: orderData.deliveryZipCode,
+        // Correo de contacto: permite ligar este pedido a la cuenta de la clienta
+        correoContacto:
+          typeof orderData.deliveryAddress?.correoContacto === "string" &&
+          /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(orderData.deliveryAddress.correoContacto)
+            ? orderData.deliveryAddress.correoContacto
+            : null,
       },
       discount_id: discountId,
       is_offline_sale: false,
