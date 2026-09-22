@@ -2,9 +2,10 @@
 
 import React, { useEffect, useState } from "react";
 import { useAtom } from "jotai";
-import { cartItemsAtom, cartOpenAtom } from "@/store/cartStore";
+import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { XIcon, MinusIcon, PlusIcon, ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PlusCircleIcon, SparkleIcon, SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr";
 import {
@@ -16,6 +17,7 @@ import {
 export default function CartDrawer() {
   const [isOpen, setIsOpen] = useAtom(cartOpenAtom);
   const [cartItems, setCartItems] = useAtom(cartItemsAtom);
+  const router = useRouter();
 
   // Calcula el subtotal
   const subtotal = cartItems.reduce((acc, item) => acc + item.unitPrice * item.quantity, 0);
@@ -65,6 +67,23 @@ export default function CartDrawer() {
       }
       return item;
     }));
+  };
+
+  /**
+   * Editar un artículo: se quita del carrito y se va a la página del producto para
+   * ajustarlo y volver a agregarlo. Así no hay que borrar todo el pedido si algo
+   * salió mal, y tampoco quedan artículos duplicados.
+   */
+  const editarItem = (item: CartItem) => {
+    setCartItems((prev) => prev.filter((i) => i.cartItemId !== item.cartItemId));
+    setIsOpen(false);
+    toast.success("Ajusta tu producto y agrégalo de nuevo", {
+      action: {
+        label: "Deshacer",
+        onClick: () => setCartItems((prev) => [...prev, item]),
+      },
+    });
+    router.push(`/product/${item.slug}`);
   };
 
   // Función para eliminar producto
@@ -149,6 +168,19 @@ export default function CartDrawer() {
                     </p>
                   )}
                   
+                  {/* Editar (para corregir opciones, diseño o fecha) */}
+                  {(Object.keys(item.selectedOptions || {}).length > 0 ||
+                    item.customCupImage ||
+                    item.deliveryDate) && (
+                    <button
+                      type="button"
+                      onClick={() => editarItem(item)}
+                      className="mt-2 text-xs font-bold text-terracota hover:underline"
+                    >
+                      ✎ Editar{item.customCupImage ? " diseño" : ""}
+                    </button>
+                  )}
+
                   {/* Controles de Cantidad */}
                   <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center rounded-lg overflow-hidden bg-[#F5EFF6]">

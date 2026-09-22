@@ -26,3 +26,17 @@ export function idsDeCategoriasComplementos(
       .map((c) => c.id)
   );
 }
+
+/**
+ * La taza personalizada necesita su configurador (subir foto y ajustar).
+ *
+ * Se reconoce por el NOMBRE, no por la casilla "Complementa tu regalo": esa casilla
+ * sirve para ofrecer complementos, y al desactivarla en la taza se quedaba sin
+ * personalizador (que es justo lo que la distingue).
+ *
+ * Vive en este archivo (sin "use client") porque lo usan tanto el servidor (la ficha
+ * del producto) como el navegador (el modal de complementos).
+ */
+export function esTazaPersonalizada(producto: { name?: string | null }): boolean {
+  return /taza/i.test(String(producto?.name || ""));
+}

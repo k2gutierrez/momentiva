@@ -15,11 +15,6 @@ export type ComplementoSugerido = {
   is_custom_cup?: boolean | null;
 };
 
-/** La taza personalizada necesita su configurador (subir foto y ajustar). */
-export function esTazaPersonalizada(c: { name?: string | null; is_custom_cup?: boolean | null }) {
-  return Boolean(c.is_custom_cup) && /taza/i.test(String(c.name || ""));
-}
-
 /**
  * Trae los productos de la categoría "Complementa tu regalo".
  *

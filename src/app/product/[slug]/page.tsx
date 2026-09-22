@@ -4,7 +4,7 @@ import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
 import CupPreviewer from "@/components/CupPreviewer";
 import ComplementosSeccion from "@/components/ComplementosSeccion";
-import { esCategoriaComplementos } from "@/lib/complementos";
+import { esCategoriaComplementos, esTazaPersonalizada } from "@/lib/complementos";
 import ProductOptionsForm from "@/components/ProductOptionsForm";
 import ProductTabs from "@/components/ProductTabs";
 import ProductGallery from "@/components/ProductGallery";
@@ -115,11 +115,13 @@ export default async function ProductPage({
     categoriaDelProducto?.slug,
     categoriaDelProducto?.name
   );
+  // La taza siempre se puede personalizar (aunque la casilla de complementos esté
+  // apagada): su configurador es lo que la define.
+  const esTazaDelProducto = esTazaPersonalizada(product);
+  const tituloPersonalizacion = esTazaDelProducto ? "Personaliza tu taza" : "Personaliza tu regalo";
+
   // Título propio cuando la página ES un complemento (ahí no se ofrecen más
   // complementos: la sección sirve para personalizarlo).
-  const productoComplementoTitulo = product.name?.toLowerCase().includes("taza")
-    ? "Personaliza tu taza"
-    : "Personaliza tu regalo";
 
   const complementosFiltrados = (complementos || []).filter(
     (c) => c.id !== productoTaza?.id
@@ -198,7 +200,7 @@ export default async function ProductPage({
       {/* Sección de personalización: SOLO en la página del propio complemento (la taza).
           En los productos normales los complementos ya no se muestran aquí: se ofrecen
           en un modal al agregar al carrito (estilo enviaflores). */}
-      {esProductoComplemento && product.is_custom_cup === true && (
+      {esProductoComplemento && (product.is_custom_cup === true || esTazaPersonalizada(product)) && (
       <ComplementosSeccion clave={product.slug} siempreVisible={esProductoComplemento}>
       <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
@@ -207,7 +209,7 @@ export default async function ProductPage({
               {esProductoComplemento ? "Personalízalo" : "Complementos especiales"}
             </span>
             <h3 className="text-3xl md:text-4xl font-bold text-[#3A243F]">
-              {esProductoComplemento ? productoComplementoTitulo : "Complementa tu regalo"}
+              {esProductoComplemento ? tituloPersonalizacion : "Complementa tu regalo"}
             </h3>
             <p className="text-gray-600 mt-3 max-w-2xl mx-auto">
               {esProductoComplemento
@@ -219,7 +221,7 @@ export default async function ProductPage({
           {/* Personalizador de Taza: solo si el producto lo tiene habilitado (is_custom_cup) */}
           {/* Personalizador de Taza: la taza se agrega desde aquí (con foto),
               por eso no se repite como tarjeta en la cuadrícula de abajo. */}
-          {product.is_custom_cup && productoTaza && (
+          {(product.is_custom_cup || esTazaDelProducto) && productoTaza && (
             <CupPreviewer
               producto={{
                 id: productoTaza.id,

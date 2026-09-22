@@ -20,9 +20,9 @@ import { complementosModalAbiertoAtom, entregaSeleccionadaAtom } from "@/store/c
 import {
   traerComplementos,
   agregarComplemento,
-  esTazaPersonalizada,
   type ComplementoSugerido,
 } from "@/lib/complementosCliente";
+import { esTazaPersonalizada } from "@/lib/complementos";
 import CupPreviewer from "@/components/CupPreviewer";
 
 /**
