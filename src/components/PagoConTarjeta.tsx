@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CreditCardIcon, CircleNotchIcon, ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr";
 import { pagarPedidoConTarjeta } from "@/actions/pagos";
+import { toast } from "sonner";
 import { CLAVE_PUBLICA_MERCADO_PAGO } from "@/lib/mercadoPagoPublica";
 
 declare global {
@@ -122,15 +123,21 @@ export default function PagoConTarjeta({
             },
             onSubmit: ({ formData }: { formData: Record<string, unknown> }) =>
               new Promise<void>((resolver, rechazar) => {
+                const pagador = (formData.payer || {}) as Record<string, unknown>;
                 pagarPedidoConTarjeta({
                   orderId,
                   token: String(formData.token || ""),
                   paymentMethodId: String(formData.payment_method_id || ""),
+                  paymentTypeId: formData.payment_type_id
+                    ? String(formData.payment_type_id)
+                    : undefined,
                   installments: Number(formData.installments) || 1,
                   issuerId: formData.issuer_id ? String(formData.issuer_id) : undefined,
-                  payerEmail:
-                    ((formData.payer as Record<string, unknown>)?.email as string) || correo,
-                  identificacion: (formData.payer as Record<string, unknown>)?.identification as
+                  payerEmail: (pagador.email as string) || correo,
+                  // Mercado Pago pide nombre y apellido para los pagos en efectivo
+                  nombre: (pagador.first_name as string) || undefined,
+                  apellido: (pagador.last_name as string) || undefined,
+                  identificacion: pagador.identification as
                     | { type?: string; number?: string }
                     | undefined,
                 })
@@ -144,7 +151,14 @@ export default function PagoConTarjeta({
                       });
                       resolver();
                     } else {
+                      // Se muestra el motivo y se lleva la vista al formulario: antes
+                      // el aviso aparecía arriba y el cliente no lo veía.
                       setError(r.error || "No se pudo procesar el pago.");
+                      toast.error(r.error || "No se pudo procesar el pago.");
+                      contenedor.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "center",
+                      });
                       rechazar(new Error(r.error || "Pago rechazado"));
                     }
                   })

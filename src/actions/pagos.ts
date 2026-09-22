@@ -24,7 +24,12 @@ export async function pagarPedidoConTarjeta(datos: {
   orderId: string;
   token: string;
   paymentMethodId: string;
+  /** credit_card | debit_card | ticket | atm ... */
+  paymentTypeId?: string;
   installments?: number;
+  /** Nombre y apellido del pagador (Mercado Pago los pide en efectivo) */
+  nombre?: string;
+  apellido?: string;
   issuerId?: string;
   payerEmail?: string;
   identificacion?: { type?: string; number?: string };
@@ -39,8 +44,18 @@ export async function pagarPedidoConTarjeta(datos: {
 
     const token = String(datos.token || "").trim();
     const metodo = String(datos.paymentMethodId || "").trim();
-    if (!datos.orderId || !token || !metodo) {
+    const tipo = String(datos.paymentTypeId || "").trim();
+
+    // ⚠️ Los pagos en EFECTIVO (OXXO) y los depósitos NO llevan token: el token solo
+    // existe para tarjetas. Antes se exigía siempre, y por eso OXXO se rechazaba con
+    // "faltan datos del pago" aunque el cliente ya hubiera llenado todo.
+    const esEfectivo = tipo === "ticket" || tipo === "atm";
+    if (!datos.orderId || !metodo) {
       return { ok: false, status: "", error: "Faltan datos del pago." };
+    }
+    // El token solo existe para tarjetas: en efectivo (OXXO) no se pide.
+    if (!esEfectivo && !token) {
+      return { ok: false, status: "", error: "Faltan los datos de la tarjeta." };
     }
 
     const admin = createAdminClient();
@@ -74,7 +89,6 @@ export async function pagarPedidoConTarjeta(datos: {
     const cuerpo: Record<string, unknown> = {
       // El monto SIEMPRE del pedido guardado
       transaction_amount: Number(pedido.total_amount),
-      token,
       description: `Momentiva · pedido ${String(pedido.id).slice(0, 8)}`,
       installments: Number(datos.installments) || 1,
       payment_method_id: metodo,
@@ -82,8 +96,22 @@ export async function pagarPedidoConTarjeta(datos: {
       notification_url: `${siteUrl}/api/webhooks/mercado-pago`,
       statement_descriptor: "MOMENTIVA",
     };
+    if (token) cuerpo.token = token;
     if (datos.issuerId) cuerpo.issuer_id = datos.issuerId;
+
+    // En efectivo, Mercado Pago pide la ficha con la URL para pagar
+    if (tipo === "ticket" || tipo === "atm") {
+      cuerpo.payment_method_id = metodo;
+    }
     if (correo) cuerpo.payer = { email: correo };
+    if (datos.nombre || datos.apellido) {
+      cuerpo.payer = {
+        ...(cuerpo.payer as object),
+        first_name: datos.nombre || undefined,
+        last_name: datos.apellido || undefined,
+      };
+    }
+
     if (datos.identificacion?.number) {
       cuerpo.payer = {
         ...(cuerpo.payer as object),
