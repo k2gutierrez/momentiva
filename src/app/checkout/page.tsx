@@ -11,6 +11,7 @@ import { MapPinIcon, CalendarBlankIcon, TicketIcon, CheckCircleIcon, ArrowLeftIc
 import Link from "next/link";
 import { toast } from "sonner";
 import PagoConTarjeta from "@/components/PagoConTarjeta";
+import { CLAVE_PUBLICA_MERCADO_PAGO } from "@/lib/mercadoPagoPublica";
 import { formatearEntrega, unificarEntrega } from "@/lib/entrega";
 
 interface DeliveryZone {
@@ -57,7 +58,7 @@ export default function CheckoutPage() {
   // Pago con tarjeta dentro de la tienda (Payment Brick). Está DESHABILITADO hasta
   // que exista NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY; sin ella se usa la redirección
   // de Mercado Pago de siempre.
-  const brickHabilitado = Boolean(process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY);
+  const brickHabilitado = Boolean(CLAVE_PUBLICA_MERCADO_PAGO);
   const [pagoEnTienda, setPagoEnTienda] = useState<{
     orderId: string;
     monto: number;

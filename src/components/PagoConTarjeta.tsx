@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CreditCardIcon, CircleNotchIcon, ArrowSquareOutIcon } from "@phosphor-icons/react/dist/ssr";
 import { pagarPedidoConTarjeta } from "@/actions/pagos";
+import { CLAVE_PUBLICA_MERCADO_PAGO } from "@/lib/mercadoPagoPublica";
 
 declare global {
   interface Window {
@@ -47,7 +48,7 @@ export default function PagoConTarjeta({
   const [error, setError] = useState("");
 
   useEffect(() => {
-    const clave = process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY;
+    const clave = CLAVE_PUBLICA_MERCADO_PAGO;
     if (!clave) {
       onNoDisponible();
       return;
