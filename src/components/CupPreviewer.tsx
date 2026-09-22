@@ -140,10 +140,10 @@ export default function CupPreviewer({
   return (
     <div className="flex flex-col lg:flex-row gap-8 lg:gap-12 p-6 md:p-10 max-w-6xl mx-auto items-center lg:items-start bg-white rounded-3xl shadow-sm">
       {/* Columna Izquierda: El Canvas con Responsive Scaling */}
-      <div className="w-full lg:w-1/2 flex justify-center overflow-hidden">
+      <div className="w-full lg:w-1/2 flex justify-center overflow-hidden shrink-0">
         {/* Escalamos el canvas (500x500) con un contenedor de altura proporcional */}
-        <div className="w-[325px] h-[325px] sm:w-[375px] sm:h-[375px] md:w-[450px] md:h-[450px] lg:w-[500px] lg:h-[500px] overflow-hidden mx-auto">
-          <div className="scale-[0.65] sm:scale-75 md:scale-90 lg:scale-100 origin-top-left">
+        <div className="shrink-0 w-[325px] h-[325px] sm:w-[375px] sm:h-[375px] md:w-[450px] md:h-[450px] lg:w-[500px] lg:h-[500px] overflow-hidden mx-auto">
+          <div className="w-[500px] h-[500px] scale-[0.65] sm:scale-75 md:scale-90 lg:scale-100 origin-top-left">
             <CupCanvas uploadedImageSrc={imageSrc} onSnapshot={handleSnapshot} />
           </div>
         </div>
