@@ -137,6 +137,9 @@ export default function PagoConTarjeta({
                   // Mercado Pago pide nombre y apellido para los pagos en efectivo
                   nombre: (pagador.first_name as string) || undefined,
                   apellido: (pagador.last_name as string) || undefined,
+                  // Por si el formulario los manda en la raíz
+                  nombreSuelto: formData.first_name ? String(formData.first_name) : undefined,
+                  apellidoSuelto: formData.last_name ? String(formData.last_name) : undefined,
                   identificacion: pagador.identification as
                     | { type?: string; number?: string }
                     | undefined,

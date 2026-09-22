@@ -30,6 +30,9 @@ export async function pagarPedidoConTarjeta(datos: {
   /** Nombre y apellido del pagador (Mercado Pago los pide en efectivo) */
   nombre?: string;
   apellido?: string;
+  /** El formulario puede mandarlos en la raíz en lugar de dentro de payer. */
+  nombreSuelto?: string;
+  apellidoSuelto?: string;
   issuerId?: string;
   payerEmail?: string;
   identificacion?: { type?: string; number?: string };
@@ -49,11 +52,15 @@ export async function pagarPedidoConTarjeta(datos: {
     // ⚠️ Los pagos en EFECTIVO (OXXO) y los depósitos NO llevan token: el token solo
     // existe para tarjetas. Antes se exigía siempre, y por eso OXXO se rechazaba con
     // "faltan datos del pago" aunque el cliente ya hubiera llenado todo.
-    const esEfectivo = tipo === "ticket" || tipo === "atm";
     if (!datos.orderId || !metodo) {
       return { ok: false, status: "", error: "Faltan datos del pago." };
     }
-    // El token solo existe para tarjetas: en efectivo (OXXO) no se pide.
+
+    // El TOKEN solo lo generan las tarjetas. Si no viene token, el pago NO es con
+    // tarjeta (es OXXO, depósito o similar), así que no se puede exigir.
+    // Antes se revisaba el "tipo" que manda el formulario, pero en efectivo ese dato
+    // no llega y se rechazaba un pago correcto con "faltan los datos de la tarjeta".
+    const esEfectivo = !token || tipo === "ticket" || tipo === "atm";
     if (!esEfectivo && !token) {
       return { ok: false, status: "", error: "Faltan los datos de la tarjeta." };
     }
@@ -104,11 +111,13 @@ export async function pagarPedidoConTarjeta(datos: {
       cuerpo.payment_method_id = metodo;
     }
     if (correo) cuerpo.payer = { email: correo };
-    if (datos.nombre || datos.apellido) {
+    const nombrePagador = datos.nombre || datos.nombreSuelto || "";
+    const apellidoPagador = datos.apellido || datos.apellidoSuelto || "";
+    if (nombrePagador || apellidoPagador) {
       cuerpo.payer = {
         ...(cuerpo.payer as object),
-        first_name: datos.nombre || undefined,
-        last_name: datos.apellido || undefined,
+        first_name: nombrePagador || undefined,
+        last_name: apellidoPagador || undefined,
       };
     }
 
