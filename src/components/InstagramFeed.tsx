@@ -59,9 +59,9 @@ export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
           >
             {/* Imagen normal */}
             <img
-              src="/assets/logo-blanco.png"
+              src="/assets/avatar-instagram.png"
               alt="Momentiva GDL"
-              className="w-full h-full object-contain p-2 transition-opacity duration-300 group-hover:opacity-0"
+              className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0"
             />
             {/* Fondo negro con ícono de insta en Hover */}
             <div className="absolute inset-0 bg-[#0F0F0F] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
