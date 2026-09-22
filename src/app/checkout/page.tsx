@@ -10,6 +10,7 @@ import { processCheckoutOrder, validateCoupon } from "@/actions/checkout";
 import { MapPinIcon, CalendarBlankIcon, TicketIcon, CheckCircleIcon, ArrowLeftIcon, CreditCardIcon, WarningIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { toast } from "sonner";
+import PagoConTarjeta from "@/components/PagoConTarjeta";
 import { formatearEntrega, unificarEntrega } from "@/lib/entrega";
 
 interface DeliveryZone {
@@ -52,6 +53,17 @@ export default function CheckoutPage() {
   // cuenta de la clienta (antes, quien pagaba como invitada y luego creaba su cuenta
   // no encontraba su pedido por ningún lado).
   const [correo, setCorreo] = useState("");
+
+  // Pago con tarjeta dentro de la tienda (Payment Brick). Está DESHABILITADO hasta
+  // que exista NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY; sin ella se usa la redirección
+  // de Mercado Pago de siempre.
+  const brickHabilitado = Boolean(process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY);
+  const [pagoEnTienda, setPagoEnTienda] = useState<{
+    orderId: string;
+    monto: number;
+    initPoint: string;
+    correo: string;
+  } | null>(null);
 
   const [fullName, setFullName] = useState(() => profile?.full_name || "");
   const [phone, setPhone] = useState(() => profile?.phone || "");
@@ -257,8 +269,20 @@ export default function CheckoutPage() {
 
     if (result.success) {
       if (result.initPoint) {
-        // El carrito se limpia en la página de resultado del pago (ClearCartOnMount),
-        // así la redirección a Mercado Pago es inmediata y sin parpadeos.
+        // Con el Brick habilitado, el pago se hace aquí mismo dentro de la tienda.
+        if (brickHabilitado && result.orderId) {
+          setPagoEnTienda({
+            orderId: result.orderId,
+            monto: totalAmount,
+            initPoint: result.initPoint,
+            correo: correo.trim().toLowerCase(),
+          });
+          toast.success("Pedido registrado. Completa el pago aquí mismo.");
+          return;
+        }
+
+        // Si no, el camino de siempre: redirección a Mercado Pago.
+        // El carrito se limpia en la página de resultado del pago (ClearCartOnMount).
         toast.success("Pedido registrado. Te llevamos a Mercado Pago para pagar...");
         window.location.href = result.initPoint;
         return;
@@ -387,6 +411,27 @@ export default function CheckoutPage() {
             </div>
 
             {/* 2. DELIVERY ADDRESS & DATE */}
+            {pagoEnTienda && (
+              <div className="mb-6">
+                <PagoConTarjeta
+                  orderId={pagoEnTienda.orderId}
+                  monto={pagoEnTienda.monto}
+                  correo={pagoEnTienda.correo}
+                  onPagoResuelto={({ status, paymentId }) => {
+                    const destino =
+                      status === "approved"
+                        ? `/pago/exito?payment_id=${paymentId}`
+                        : `/pago/pendiente?payment_id=${paymentId}`;
+                    window.location.href = destino;
+                  }}
+                  onNoDisponible={() => {
+                    // Respaldo: si el formulario no carga, se paga con la redirección
+                    window.location.href = pagoEnTienda.initPoint;
+                  }}
+                />
+              </div>
+            )}
+
             <form id="checkout-form" onSubmit={handlePlaceOrder} className="bg-white p-8 rounded-3xl shadow-sm space-y-6">
               <h3 className="text-xl font-bold text-berenjena flex items-center gap-2 pb-3">
                 <CalendarBlankIcon size={24} className="text-terracota" />

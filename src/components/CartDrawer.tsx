@@ -6,7 +6,7 @@ import { cartItemsAtom, cartOpenAtom } from "@/store/cartStore";
 import { XIcon, MinusIcon, PlusIcon, ArrowRightIcon } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { toast } from "sonner";
-import { PlusCircleIcon, SparkleIcon } from "@phosphor-icons/react/dist/ssr";
+import { PlusCircleIcon, SparkleIcon, SlidersHorizontalIcon } from "@phosphor-icons/react/dist/ssr";
 import {
   traerComplementos,
   agregarComplemento,
@@ -197,13 +197,23 @@ export default function CartDrawer() {
                     <p className="text-terracota text-xs font-bold mt-1">
                       ${Number(comp.price).toFixed(2)}
                     </p>
-                    <button
-                      type="button"
-                      onClick={() => agregarSugerido(comp)}
-                      className="mt-1 w-full flex items-center justify-center gap-1 bg-terracota text-white text-[11px] font-bold py-1.5 rounded-lg hover:opacity-90 transition-opacity"
-                    >
-                      <PlusCircleIcon size={13} weight="bold" /> Agregar
-                    </button>
+                    {Array.isArray(comp.custom_options) && comp.custom_options.length > 0 ? (
+                      <Link
+                        href={`/product/${comp.slug}`}
+                        onClick={handleClose}
+                        className="mt-1 w-full flex items-center justify-center gap-1 bg-[#F5EFF6] text-[#3A243F] text-[11px] font-bold py-1.5 rounded-lg hover:bg-terracota hover:text-white transition-colors"
+                      >
+                        <SlidersHorizontalIcon size={13} weight="bold" /> Elegir
+                      </Link>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => agregarSugerido(comp)}
+                        className="mt-1 w-full flex items-center justify-center gap-1 bg-terracota text-white text-[11px] font-bold py-1.5 rounded-lg hover:opacity-90 transition-opacity"
+                      >
+                        <PlusCircleIcon size={13} weight="bold" /> Agregar
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
