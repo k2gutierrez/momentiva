@@ -3,6 +3,7 @@
 import React from "react";
 import { useSetAtom } from "jotai";
 import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
+import { complementosModalAbiertoAtom } from "@/store/complementosStore";
 import { ShoppingCartIcon } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
 
@@ -18,6 +19,8 @@ interface AddToCartButtonProps {
   deliveryDate?: string;
   deliveryTime?: string;
   blockedDates?: string[];
+  /** Si el producto acepta complementos, al agregar se abre el modal. */
+  tieneComplementos?: boolean;
 }
 
 export default function AddToCartButton({
@@ -26,9 +29,11 @@ export default function AddToCartButton({
   deliveryDate,
   deliveryTime,
   blockedDates = [],
+  tieneComplementos = false,
 }: AddToCartButtonProps) {
   const setCart = useSetAtom(cartItemsAtom);
   const setCartOpen = useSetAtom(cartOpenAtom);
+  const setModalComplementos = useSetAtom(complementosModalAbiertoAtom);
 
   const handleAddToCart = () => {
     // Validar fecha y horario de entrega
@@ -84,7 +89,14 @@ export default function AddToCartButton({
     });
 
     toast.success("Producto agregado al carrito");
-    setCartOpen(true);
+
+    // Si el producto acepta complementos, se ofrece el modal (estilo enviaflores);
+    // si no, se abre el carrito como siempre.
+    if (tieneComplementos) {
+      setModalComplementos(true);
+    } else {
+      setCartOpen(true);
+    }
   };
 
   return (

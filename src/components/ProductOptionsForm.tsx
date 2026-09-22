@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { useAtom, useSetAtom } from "jotai";
-import { entregaSeleccionadaAtom, quiereComplementosAtom } from "@/store/complementosStore";
+import { entregaSeleccionadaAtom } from "@/store/complementosStore";
 import AddToCartButton from "./AddToCartButton";
 import DeliveryDateTimePicker from "./DeliveryDateTimePicker";
 import { ImageSquareIcon } from "@phosphor-icons/react/dist/ssr";
@@ -42,7 +42,6 @@ export default function ProductOptionsForm({
   const [imagePreviews, setImagePreviews] = useState<Record<string, string[]>>({});
   const [deliveryDate, setDeliveryDate] = useState("");
   const [deliveryTime, setDeliveryTime] = useState("");
-  const [quiereComplementos, setQuiereComplementos] = useAtom(quiereComplementosAtom);
   const setEntregaSeleccionada = useSetAtom(entregaSeleccionadaAtom);
 
   // La fecha y hora elegidas aquí las heredan los complementos que se agreguen
@@ -183,59 +182,8 @@ export default function ProductOptionsForm({
         </div>
       )}
 
-      {/* ¿Quiere agregar complementos? Solo si el producto los acepta.
-          Si dice "no", no se muestra nada abajo. */}
-      {tieneComplementos && (
-      <div className="bg-[#EFE6F4] p-5 rounded-2xl mb-6 shadow-md">
-        <h3 className="text-[#3A243F] font-bold text-sm uppercase tracking-wider mb-1">
-          ¿Quieres agregar un complemento?
-        </h3>
-        <p className="text-xs text-gray-600 mb-3">
-          🎁 Suma a tu regalo una taza personalizada, suculentas, pastel, cervezas o
-          charcutería. Puedes elegirlo ahora o dejarlo solo con el globo.
-        </p>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              setQuiereComplementos(true);
-              // El bloque aparece más abajo: lo llevamos a la vista
-              setTimeout(() => {
-                document
-                  .getElementById("complementa-tu-regalo")
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              }, 120);
-            }}
-            className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-              quiereComplementos
-                ? "bg-terracota text-white shadow-md"
-                : "bg-white text-[#3A243F] border border-lilaPastel hover:border-terracota"
-            }`}
-          >
-            Sí, ver complementos
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuiereComplementos(false)}
-            className={`flex-1 px-4 py-3 rounded-xl text-sm font-bold transition-all ${
-              !quiereComplementos
-                ? "bg-[#3A243F] text-white shadow-md"
-                : "bg-white text-[#3A243F] border border-lilaPastel hover:border-terracota"
-            }`}
-          >
-            No, gracias
-          </button>
-        </div>
-        {quiereComplementos && (
-          <a
-            href="#complementa-tu-regalo"
-            className="inline-block mt-3 text-xs font-bold text-terracota hover:underline"
-          >
-            ↓ Ver los complementos disponibles
-          </a>
-        )}
-      </div>
-      )}
+      {/* Los complementos ya NO se muestran aquí: al agregar al carrito se abre el
+          modal de complementos (estilo enviaflores). */}
 
       {/* Fecha y horario de entrega (disponibilidad inmediata) */}
       <DeliveryDateTimePicker
@@ -255,6 +203,7 @@ export default function ProductOptionsForm({
           deliveryDate={deliveryDate}
           deliveryTime={deliveryTime}
           blockedDates={blockedDates}
+          tieneComplementos={tieneComplementos}
         />
       </div>
     </div>

@@ -4,7 +4,6 @@ import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
 import CupPreviewer from "@/components/CupPreviewer";
 import ComplementosSeccion from "@/components/ComplementosSeccion";
-import ComplementosGrid from "@/components/ComplementosGrid";
 import { esCategoriaComplementos } from "@/lib/complementos";
 import ProductOptionsForm from "@/components/ProductOptionsForm";
 import ProductTabs from "@/components/ProductTabs";
@@ -196,10 +195,10 @@ export default async function ProductPage({
         </div>
       </section>
 
-      {/* Sección: Complementa tu Regalo */}
-      {/* Sección de complementos: se muestra si el producto tiene activado
-          "Complementa tu regalo" (columna is_custom_cup, que también habilita el previsualizador de taza) */}
-      {product.is_custom_cup === true && (
+      {/* Sección de personalización: SOLO en la página del propio complemento (la taza).
+          En los productos normales los complementos ya no se muestran aquí: se ofrecen
+          en un modal al agregar al carrito (estilo enviaflores). */}
+      {esProductoComplemento && product.is_custom_cup === true && (
       <ComplementosSeccion clave={product.slug} siempreVisible={esProductoComplemento}>
       <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">
@@ -230,27 +229,6 @@ export default async function ProductPage({
                 image: productoTaza.images?.[0] || null,
               }}
             />
-          )}
-
-          {/* Grid de complementos: se agregan con la misma fecha y hora del producto.
-              Un complemento no ofrece más complementos. */}
-          {!esProductoComplemento && complementosFiltrados.length > 0 ? (
-            <ComplementosGrid
-              complementos={complementosFiltrados.map((c) => ({
-                id: c.id,
-                name: c.name,
-                slug: c.slug,
-                price: Number(c.price),
-                images: c.images ?? null,
-                custom_options: c.custom_options,
-              }))}
-            />
-          ) : (
-            <div className="text-center py-10 mt-12 bg-white rounded-2xl border border-dashed border-lilaPastel">
-              <p className="text-gray-500 text-sm">
-                Muy pronto podrás agregar suculentas, cervezas, pastel, copa de postre y charcutería a tu regalo.
-              </p>
-            </div>
           )}
 
         </div>

@@ -19,3 +19,9 @@ export const entregaSeleccionadaAtom = atom<{ fecha: string; hora: string }>({
   fecha: "",
   hora: "",
 });
+
+/**
+ * Controla el modal de complementos que se abre al agregar al carrito un producto
+ * que sí los acepta (estilo enviaflores).
+ */
+export const complementosModalAbiertoAtom = atom(false);

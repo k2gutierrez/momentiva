@@ -5,6 +5,7 @@ import { Provider as JotaiProvider } from 'jotai';
 import { Toaster } from 'sonner';
 import AuthProvider from "@/components/AuthProvider";
 import CartDrawer from "@/components/CartDrawer";
+import ComplementosModal from "@/components/ComplementosModal";
 import { WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
 
 // Initialize fonts
@@ -34,6 +35,7 @@ export default function RootLayout({
         <JotaiProvider>
           <AuthProvider>
             <CartDrawer />
+        <ComplementosModal />
             <Toaster position="bottom-right" richColors />
 
             <div className="flex flex-col min-h-screen">
