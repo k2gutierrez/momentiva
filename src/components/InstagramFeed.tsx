@@ -55,11 +55,11 @@ export default function InstagramFeed({ posts = [] }: { posts?: InstaPost[] }) {
             target="_blank"
             rel="noopener noreferrer"
             title="@momentiva.gdl"
-            className="relative w-16 h-16 rounded-full flex items-center justify-center overflow-hidden group block bg-[#3B2142] shadow-sm shrink-0"
+            className="relative w-20 h-20 rounded-full flex items-center justify-center overflow-hidden group block bg-[#3B2142] shadow-sm shrink-0"
           >
             {/* Imagen normal */}
             <img
-              src="/assets/avatar-instagram.png"
+              src="/assets/logo-instagram-400.png"
               alt="Momentiva GDL"
               className="w-full h-full object-cover transition-opacity duration-300 group-hover:opacity-0"
             />
