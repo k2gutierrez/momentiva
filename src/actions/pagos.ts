@@ -109,6 +109,7 @@ export async function pagarPedidoConTarjeta(datos: {
       status?: string;
       status_detail?: string;
       message?: string;
+      transaction_details?: { external_resource_url?: string };
     };
 
     if (!respuesta.ok || !pago?.id) {
@@ -128,6 +129,8 @@ export async function pagarPedidoConTarjeta(datos: {
       paymentId: String(pago.id),
       status: pago.status || "pending",
       statusDetail: pago.status_detail || "",
+      // Pagos en efectivo (OXXO): Mercado Pago devuelve la ficha con el código
+      voucherUrl: pago.transaction_details?.external_resource_url || "",
       error: "",
     };
   } catch (error: unknown) {

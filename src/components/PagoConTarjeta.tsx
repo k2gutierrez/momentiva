@@ -40,7 +40,13 @@ export default function PagoConTarjeta({
   orderId: string;
   monto: number;
   correo?: string;
-  onPagoResuelto: (resultado: { status: string; statusDetail: string; paymentId: string }) => void;
+  onPagoResuelto: (resultado: {
+    status: string;
+    statusDetail: string;
+    paymentId: string;
+    /** Para pagos en efectivo (OXXO): la ficha con el código para pagar. */
+    voucherUrl?: string;
+  }) => void;
   onNoDisponible: () => void;
 }) {
   const contenedor = useRef<HTMLDivElement>(null);
@@ -97,6 +103,12 @@ export default function PagoConTarjeta({
             paymentMethods: {
               creditCard: "all",
               debitCard: "all",
+              prepaidCard: "all",
+              // OXXO y depósito en efectivo, también aquí mismo (SPEI no está
+              // disponible en este componente: para eso queda el botón de
+              // "Prefiero pagar con Mercado Pago").
+              ticket: "all",
+              atm: "all",
               // Sin saldo de Mercado Pago: para eso está el botón de redirección.
               mercadoPago: "none",
             },
@@ -128,6 +140,7 @@ export default function PagoConTarjeta({
                         status: r.status,
                         statusDetail: r.statusDetail || "",
                         paymentId: r.paymentId || "",
+                        voucherUrl: r.voucherUrl || "",
                       });
                       resolver();
                     } else {

@@ -763,7 +763,7 @@ export default function CheckoutPage() {
               </button>
 
               <p className="text-[11px] text-gray-500 text-center leading-relaxed">
-                Paga con tarjeta aquí mismo, o con OXXO y SPEI desde Mercado Pago.
+                Paga con tarjeta u OXXO aquí mismo. Si prefieres SPEI, usa el botón de abajo.
               </p>
 
             </div>
@@ -784,7 +784,12 @@ export default function CheckoutPage() {
                 orderId={pagoEnTienda.orderId}
                 monto={pagoEnTienda.monto}
                 correo={pagoEnTienda.correo}
-                onPagoResuelto={({ status, paymentId }) => {
+                onPagoResuelto={({ status, paymentId, voucherUrl }) => {
+                  // Pago en efectivo (OXXO): se lleva a la ficha con el código para pagar
+                  if (voucherUrl) {
+                    window.location.href = voucherUrl;
+                    return;
+                  }
                   const destino =
                     status === "approved"
                       ? `/pago/exito?payment_id=${paymentId}`
