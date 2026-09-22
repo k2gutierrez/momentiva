@@ -156,13 +156,13 @@ export default function ComplementosModal() {
             ) : (
               /* Complemento normal: su información y agregar */
               <div className="max-w-md mx-auto text-center">
-                <div className="aspect-square bg-cream/70 rounded-2xl flex items-center justify-center p-4 mb-4">
+                <div className="aspect-square bg-cream rounded-2xl overflow-hidden mb-4">
                   {seleccionado.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={seleccionado.images[0]}
                       alt={seleccionado.name}
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-cover"
                     />
                   ) : (
                     <span className="text-xs text-sage font-bold">Sin imagen</span>
@@ -228,15 +228,15 @@ export default function ComplementosModal() {
                   key={comp.id}
                   type="button"
                   onClick={() => setSeleccionado(comp)}
-                  className="flex flex-col rounded-2xl border border-lilaPastel/70 overflow-hidden bg-white shadow-sm hover:shadow-md hover:border-terracota transition-all text-left"
+                  className="group flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left"
                 >
-                  <div className="aspect-square bg-cream/70 flex items-center justify-center p-2">
+                  <div className="aspect-square bg-cream overflow-hidden">
                     {comp.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={comp.images[0]}
                         alt={comp.name}
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <span className="text-xs text-sage font-bold">Sin imagen</span>

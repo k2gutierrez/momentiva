@@ -135,7 +135,13 @@ export default function AdminOrdersPage() {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h2 className="text-3xl font-bold text-berenjena">Panel de Órdenes en Vivo</h2>
-          <p className="text-gray-500 mt-1">Supervisa el estado de producción y entrega de cada momento[cite: 1].</p>
+          <p className="text-gray-500 mt-1">
+            Supervisa el estado de producción y entrega de cada pedido.
+          </p>
+          <p className="text-sm text-berenjena mt-3 bg-[#F5EFF6] rounded-xl px-4 py-2 inline-block">
+            💡 Para avanzar un pedido, usa el selector de la columna <strong>Estatus</strong>:
+            <strong> 🌸 En preparación → 🚚 En camino / listo → ✅ Entregado</strong>
+          </p>
         </div>
         <button 
           onClick={() => setIsModalOpen(true)}
@@ -238,10 +244,10 @@ export default function AdminOrdersPage() {
                           'bg-green-50 text-green-700 border-green-200'
                         }`}
                       >
-                        <option value="placed">Recibida (Placed)</option>
-                        <option value="work_in_progress">En proceso (Work in Progress)</option>
-                        <option value="finish">Terminada (Finish)</option>
-                        <option value="delivered">Entregada (Delivered)</option>
+                        <option value="placed">🕐 Pedido recibido (sin pagar)</option>
+                        <option value="work_in_progress">🌸 En preparación</option>
+                        <option value="finish">🚚 En camino / listo</option>
+                        <option value="delivered">✅ Entregado</option>
                       </select>
                     </td>
                   </tr>
