@@ -5,6 +5,7 @@ import AuthModal from "@/components/AuthModal";
 import CupPreviewer from "@/components/CupPreviewer";
 import ComplementosSeccion from "@/components/ComplementosSeccion";
 import ComplementosGrid from "@/components/ComplementosGrid";
+import { esCategoriaComplementos } from "@/lib/complementos";
 import ProductOptionsForm from "@/components/ProductOptionsForm";
 import ProductTabs from "@/components/ProductTabs";
 import ProductGallery from "@/components/ProductGallery";
@@ -105,6 +106,17 @@ export default async function ProductPage({
   const productoTaza = tazaRows?.[0] || null;
 
   // La taza no se repite como tarjeta: su lugar es el personalizador de arriba
+  // Un producto de la categoría "Complementa tu regalo" no ofrece más complementos:
+  // es un agregado, no un regalo que los acepte. Así, aunque alguien active la casilla
+  // por error, la ficha no muestra la pregunta ni la lista.
+  const categoriaDelProducto = Array.isArray(product.category)
+    ? product.category[0]
+    : product.category;
+  const esProductoComplemento = esCategoriaComplementos(
+    categoriaDelProducto?.slug,
+    categoriaDelProducto?.name
+  );
+
   const complementosFiltrados = (complementos || []).filter(
     (c) => c.id !== productoTaza?.id
   );
@@ -172,7 +184,7 @@ export default async function ProductPage({
               }}
               anticipationDays={product.anticipation_days || 0}
               blockedDates={blockedDates}
-              tieneComplementos={product.is_custom_cup === true}
+              tieneComplementos={product.is_custom_cup === true && !esProductoComplemento}
             />
 
           </div>
@@ -182,7 +194,7 @@ export default async function ProductPage({
       {/* Sección: Complementa tu Regalo */}
       {/* Sección de complementos: se muestra si el producto tiene activado
           "Complementa tu regalo" (columna is_custom_cup, que también habilita el previsualizador de taza) */}
-      {product.is_custom_cup === true && (
+      {product.is_custom_cup === true && !esProductoComplemento && (
       <ComplementosSeccion clave={product.slug}>
       <section id="complementa-tu-regalo" className="bg-cream py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4 sm:px-8">

@@ -54,13 +54,13 @@ export default function ComplementosGrid({ complementos }: { complementos: Compl
             key={comp.id}
             className="group flex flex-col bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300"
           >
-            <div className="aspect-square bg-cream overflow-hidden">
+            <div className="aspect-square bg-cream/70 flex items-center justify-center overflow-hidden p-2">
               {comp.images && comp.images.length > 0 ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={comp.images[0]}
                   alt={comp.name}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-500"
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sage text-xs font-bold bg-lilaPastel/30">

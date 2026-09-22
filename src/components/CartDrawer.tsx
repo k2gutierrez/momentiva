@@ -180,10 +180,10 @@ export default function CartDrawer() {
                   key={comp.id}
                   className="flex-shrink-0 w-28 rounded-2xl bg-white shadow-sm border border-lilaPastel/60 overflow-hidden"
                 >
-                  <div className="h-20 bg-cream">
+                  <div className="h-20 bg-cream/70 flex items-center justify-center p-1.5">
                     {comp.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={comp.images[0]} alt={comp.name} className="w-full h-full object-cover" />
+                      <img src={comp.images[0]} alt={comp.name} className="w-full h-full object-contain" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-[10px] text-sage font-bold">
                         Sin imagen
@@ -203,7 +203,7 @@ export default function CartDrawer() {
                         onClick={handleClose}
                         className="mt-1 w-full flex items-center justify-center gap-1 bg-[#F5EFF6] text-[#3A243F] text-[11px] font-bold py-1.5 rounded-lg hover:bg-terracota hover:text-white transition-colors"
                       >
-                        <SlidersHorizontalIcon size={13} weight="bold" /> Elegir
+                        <SlidersHorizontalIcon size={13} weight="bold" /> Personalizar
                       </Link>
                     ) : (
                       <button
