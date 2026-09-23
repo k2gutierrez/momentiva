@@ -6,7 +6,7 @@ import { userAtom, userProfileAtom, authModalOpenAtom, type UserProfile } from "
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import AuthModal from "@/components/AuthModal";
-import { PackageIcon, UserIcon, SignOutIcon, LockKeyIcon, CalendarBlankIcon, FloppyDiskIcon } from "@phosphor-icons/react/dist/ssr";
+import { PackageIcon, UserIcon, SignOutIcon, LockKeyIcon, CalendarBlankIcon, FloppyDiskIcon, CaretDownIcon, MapPinIcon, CreditCardIcon } from "@phosphor-icons/react/dist/ssr";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
@@ -21,11 +21,17 @@ interface OrderItemRow {
 interface OrderRow {
   id: string;
   status: string;
+  payment_status?: string | null;
   total_amount: number;
   delivery_date: string | null;
   created_at: string;
   order_items: OrderItemRow[] | null;
-  delivery_address: { deliveryTime?: string } | null;
+  delivery_address: {
+    deliveryTime?: string;
+    fullName?: string;
+    streetAddress?: string;
+    esSorpresa?: boolean;
+  } | null;
 }
 
 export default function MiCuentaPage() {
@@ -34,6 +40,8 @@ export default function MiCuentaPage() {
   const setAuthModalOpen = useSetAtom(authModalOpenAtom);
 
   const [activeTab, setActiveTab] = useState<"perfil" | "pedidos">("perfil");
+  // Pedido que el cliente abrió para ver el detalle
+  const [pedidoAbierto, setPedidoAbierto] = useState<string | null>(null);
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 
@@ -56,6 +64,7 @@ export default function MiCuentaPage() {
         .select(`
           id,
           status,
+          payment_status,
           total_amount,
           delivery_date,
           created_at,
@@ -140,7 +149,7 @@ export default function MiCuentaPage() {
     const statusMap: Record<string, { label: string; color: string }> = {
       placed: { label: "Recibido", color: "bg-blue-100 text-blue-700 border-blue-200" },
       work_in_progress: { label: "En Preparación", color: "bg-orange-100 text-orange-700 border-orange-200" },
-      finish: { label: "Listo", color: "bg-purple-100 text-purple-700 border-purple-200" },
+      finish: { label: "En camino", color: "bg-purple-100 text-purple-700 border-purple-200" },
       delivered: { label: "Entregado", color: "bg-green-100 text-green-700 border-green-200" },
       cancelled: { label: "Cancelado", color: "bg-red-100 text-red-700 border-red-200" },
     };
@@ -327,8 +336,16 @@ export default function MiCuentaPage() {
                       {orders.map((order) => (
                         <div key={order.id} className="border border-lilaPastel rounded-2xl p-5 md:p-6 hover:shadow-md transition-shadow">
 
-                          {/* Cabecera del Pedido */}
-                          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-lilaPastel/50">
+                          {/* Cabecera del Pedido (se puede tocar para ver el detalle) */}
+                          <button
+                            type="button"
+                            onClick={() => setPedidoAbierto(pedidoAbierto === order.id ? null : order.id)}
+                            className="w-full text-left flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4 pb-4 border-b border-lilaPastel/50 cursor-pointer"
+                          >
+                            <span className="text-xs font-bold text-terracota flex items-center gap-1">
+                              {pedidoAbierto === order.id ? "Ocultar detalle" : "Ver detalle del pedido"}
+                              <CaretDownIcon size={14} weight="bold" className={pedidoAbierto === order.id ? "rotate-180 transition-transform" : "transition-transform"} />
+                            </span>
                             <div>
                               <p className="text-xs text-gray-400 font-mono mb-1">Pedido #{order.id.split("-")[0].toUpperCase()}</p>
                               <div className="flex items-center gap-2">
@@ -339,13 +356,13 @@ export default function MiCuentaPage() {
                                 </span>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4">
+                            <div className="w-full flex items-center justify-between md:justify-end gap-4">
                               {getStatusBadge(order.status)}
                               <span className="font-bold text-terracota text-lg">
                                 ${Number(order.total_amount).toFixed(2)}
                               </span>
                             </div>
-                          </div>
+                          </button>
 
                           {/* Lista de Artículos */}
                           <div className="space-y-3">
@@ -364,6 +381,46 @@ export default function MiCuentaPage() {
                               );
                             })}
                           </div>
+
+                          {/* Detalle ampliado */}
+                          {pedidoAbierto === order.id && (
+                            <div className="mt-4 pt-4 border-t border-lilaPastel/50 space-y-3">
+                              <div className="flex items-start gap-2 text-sm">
+                                <CreditCardIcon size={18} className="text-sage mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="font-bold text-[#3A243F]">
+                                    {order.payment_status === "paid"
+                                      ? "Pago confirmado ✅"
+                                      : order.payment_status === "refunded"
+                                        ? "Pago reembolsado"
+                                        : "Pago pendiente"}
+                                  </p>
+                                  <p className="text-gray-500 text-xs">
+                                    {order.payment_status === "paid"
+                                      ? "Tu pedido ya está en preparación."
+                                      : "Te avisamos en cuanto se confirme."}
+                                  </p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-start gap-2 text-sm">
+                                <MapPinIcon size={18} className="text-sage mt-0.5 shrink-0" />
+                                <div>
+                                  <p className="font-bold text-[#3A243F]">
+                                    Entrega: {order.delivery_date ? new Date(order.delivery_date).toLocaleDateString("es-MX", { day: "numeric", month: "long", year: "numeric" }) : "por confirmar"}
+                                    {order.delivery_address?.deliveryTime ? ` · ${order.delivery_address.deliveryTime}` : ""}
+                                  </p>
+                                  <p className="text-gray-500 text-xs">
+                                    {order.delivery_address?.fullName ? `Recibe: ${order.delivery_address.fullName}` : ""}
+                                    {order.delivery_address?.streetAddress ? ` · ${order.delivery_address.streetAddress}` : ""}
+                                  </p>
+                                  {order.delivery_address?.esSorpresa && (
+                                    <p className="text-[#8A5A3B] text-xs mt-1">🎁 Es un regalo sorpresa: no avisamos a quien lo recibe.</p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          )}
 
                         </div>
                       ))}

@@ -91,7 +91,77 @@ export default function AdminProductsPage() {
         </p>
       </div>
 
-      <div className="bg-white rounded-xl border border-lilaPastel overflow-hidden shadow-sm">
+      {/* ─────────── CELULAR: tarjetas (los botones siempre visibles) ─────────── */}
+      <div className="md:hidden space-y-3">
+        {isLoading ? (
+          <p className="text-center text-gray-500 py-8">Cargando productos...</p>
+        ) : (
+          products.map((product) => (
+            <div
+              key={product.id}
+              className={`bg-white rounded-xl border border-lilaPastel shadow-sm p-4 ${!product.is_active ? "opacity-60" : ""}`}
+            >
+              <div className="flex gap-3">
+                {product.images?.[0] && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={product.images[0]}
+                    alt={product.name}
+                    className="w-16 h-16 object-cover rounded-lg border border-lilaPastel shrink-0"
+                  />
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-berenjena leading-tight">{product.name}</p>
+                  <p className="text-terracota font-bold mt-1">${product.price.toFixed(2)}</p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${product.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+                      {product.is_active ? "Activo" : "Inactivo"}
+                    </span>
+                    {product.is_in_stock_item ? (
+                      <span className="bg-sage/20 text-sage px-2 py-0.5 rounded-full text-[11px] font-bold">
+                        {product.stock_quantity} en stock
+                      </span>
+                    ) : (
+                      <span className="bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full text-[11px] font-bold">
+                        Bajo pedido
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Acciones: siempre a la vista */}
+              <div className="grid grid-cols-3 gap-2 mt-4">
+                <Link
+                  href={`/admin/products/edit/${product.id}`}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-cream text-berenjena font-bold text-sm border border-lilaPastel"
+                >
+                  <PencilSimple size={17} /> Editar
+                </Link>
+                <button
+                  onClick={() => handleDuplicate(product.id)}
+                  className="flex items-center justify-center gap-1.5 py-2.5 rounded-lg bg-cream text-berenjena font-bold text-sm border border-lilaPastel"
+                >
+                  <Copy size={17} /> Duplicar
+                </button>
+                <button
+                  onClick={() => handleToggleStatus(product.id, product.is_active)}
+                  className={`flex items-center justify-center gap-1.5 py-2.5 rounded-lg font-bold text-sm border ${
+                    product.is_active
+                      ? "bg-red-50 text-red-600 border-red-200"
+                      : "bg-green-50 text-green-700 border-green-200"
+                  }`}
+                >
+                  <Power size={17} /> {product.is_active ? "Apagar" : "Activar"}
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* ─────────── COMPUTADORA: tabla completa ─────────── */}
+      <div className="hidden md:block bg-white rounded-xl border border-lilaPastel overflow-hidden shadow-sm">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-cream/50 text-berenjena text-sm uppercase tracking-wider">
