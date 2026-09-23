@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { confirmMercadoPagoPayment } from "@/actions/checkout";
 import { getPaymentInfo } from "@/lib/mercadopago";
 import crypto from "node:crypto";
 
@@ -60,30 +61,18 @@ export async function POST(request: NextRequest) {
     // Solo interesan las notificaciones de pago y el id debe ser numérico
     // (se usa para consultar la API de Mercado Pago, así que no se interpola texto libre)
     if (body.type === "payment" && dataId && /^\d+$/.test(dataId)) {
-      const info = await getPaymentInfo(dataId);
-
-      if (info?.externalReference) {
-        const admin = createAdminClient();
-        const supabase = admin ?? (await createClient());
-
-        const devuelto =
-          info.status === "refunded" || info.status === "charged_back";
-
-        const paymentStatus = info.status === "approved"
-          ? "paid"
-          : devuelto
-          ? "refunded"
-          : info.status === "rejected"
-          ? "rejected"
-          : "pending";
-
-        const orderStatus =
-          info.status === "approved" ? "work_in_progress" : "placed";
-
-        await supabase
-          .from("orders")
-          .update({ payment_status: paymentStatus, status: orderStatus })
-          .eq("id", info.externalReference);
+      // ⚠️ Se reutiliza EXACTAMENTE el mismo camino que usa la pantalla de pago:
+      // valida el pago con Mercado Pago, marca el pedido y manda las notificaciones
+      // (aviso al celular de las dueñas y correo de confirmación al cliente).
+      //
+      // Antes este webhook actualizaba el pedido por su cuenta y las notificaciones
+      // NO salían nunca: por eso un pago confirmado por aquí (por ejemplo con saldo
+      // de Mercado Pago o por OXXO) dejaba al cliente y a las dueñas sin aviso.
+      // El propio confirmador evita repetir el aviso si el pedido ya estaba pagado.
+      try {
+        await confirmMercadoPagoPayment(dataId);
+      } catch (errorAviso) {
+        console.error("No se pudo confirmar el pago del webhook:", errorAviso);
       }
     }
 

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { enviarCorreoDePrueba } from "@/lib/correo";
+import { enviarAvisoDePrueba } from "@/lib/pushover";
 
 /**
  * Diagnóstico del correo (solo para administradoras).
@@ -33,6 +34,28 @@ export async function GET(request: Request) {
   const destino =
     new URL(request.url).searchParams.get("correo") || perfil?.email || user.email || "";
 
-  const resultado = await enviarCorreoDePrueba(destino);
-  return Response.json({ destino, ...resultado });
+  // Se revisan LOS DOS canales de aviso: el correo al cliente y el aviso al celular
+  const [correo, pushover] = await Promise.all([
+    enviarCorreoDePrueba(destino),
+    enviarAvisoDePrueba(),
+  ]);
+
+  return Response.json({
+    destino,
+    correo: {
+      ok: correo.ok,
+      puerto: correo.puerto,
+      error: correo.error,
+      configurado: correo.config,
+    },
+    pushover: {
+      ok: pushover.ok,
+      error: pushover.error,
+      configurado: pushover.config,
+    },
+    resumen: {
+      correo: correo.ok ? "✅ FUNCIONA" : "❌ revisar",
+      pushover: pushover.ok ? "✅ FUNCIONA" : "❌ revisar",
+    },
+  });
 }
