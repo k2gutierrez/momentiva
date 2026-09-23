@@ -189,11 +189,21 @@ export async function processCheckoutOrder(orderData: {
     const productIds = orderData.cartItems.map((item) => item.productId);
     const { data: prodRows } = await precioClient
       .from("products")
-      .select("id, name, price, is_active")
+      .select("id, name, price, is_active, is_in_stock_item, stock_quantity")
       .in("id", productIds);
 
     const prodById = new Map(
-      (prodRows || []).map((p) => [String(p.id), p as { id: string; name: string; price: number; is_active: boolean }])
+      (prodRows || []).map((p) => [
+        String(p.id),
+        p as {
+          id: string;
+          name: string;
+          price: number;
+          is_active: boolean;
+          is_in_stock_item: boolean | null;
+          stock_quantity: number | null;
+        },
+      ])
     );
 
     const itemsServidor = orderData.cartItems.map((item) => {
@@ -205,6 +215,23 @@ export async function processCheckoutOrder(orderData: {
         );
       }
       const cantidad = Math.min(20, Math.max(1, Math.floor(Number(item.quantity) || 1)));
+
+      // Inventario: si el producto se maneja por existencias, no se puede vender más
+      // de lo que hay. Se avisa con claridad y se corta el pedido aquí.
+      if (prod.is_in_stock_item) {
+        const disponible = Math.max(0, Math.floor(Number(prod.stock_quantity) || 0));
+        if (disponible <= 0) {
+          throw new Error(
+            `«${prod.name}» se agotó y ya no está disponible. Puedes quitarlo del carrito para continuar.`
+          );
+        }
+        if (cantidad > disponible) {
+          throw new Error(
+            `De «${prod.name}» solo ${disponible === 1 ? "queda 1 pieza" : `quedan ${disponible} piezas`}. Ajusta la cantidad para continuar.`
+          );
+        }
+      }
+
       return {
         ...item,
         name: prod.name || item.name,
@@ -398,6 +425,27 @@ export async function processCheckoutOrder(orderData: {
       .from("products")
       .select("id, raw_cost")
       .in("id", productIds);
+
+    // 5. Descontar del inventario los productos que se manejan por existencias.
+    //    Se hace después de crear el pedido (si algo falla antes, no se descuenta).
+    //    El inventario se reserva al crear el pedido para no vender dos veces la
+    //    misma pieza; si un pedido queda sin pagar, las dueñas pueden devolver la
+    //    pieza desde el panel del producto.
+    for (const item of itemsServidor) {
+      const prod = prodById.get(String(item.productId));
+      if (!prod?.is_in_stock_item) continue;
+      const disponible = Math.max(0, Math.floor(Number(prod.stock_quantity) || 0));
+      const nuevo = Math.max(0, disponible - item.quantity);
+      const { error: stockError } = await precioClient
+        .from("products")
+        .update({ stock_quantity: nuevo })
+        .eq("id", item.productId);
+      if (stockError) {
+        console.error(`[Stock] No se pudo descontar el inventario de ${prod.name}:`, stockError.message);
+      } else {
+        console.log(`[Stock] ${prod.name}: ${disponible} → ${nuevo}`);
+      }
+    }
 
     if (costError) {
       console.warn("No se pudieron leer los costos de productos:", costError.message);

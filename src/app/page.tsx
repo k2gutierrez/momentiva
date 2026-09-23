@@ -16,7 +16,7 @@ export default async function Home() {
   // 1. Fetch active products
   const { data: products } = await supabase
     .from("products")
-    .select("id, name, slug, price, images, category_id")
+    .select("id, name, slug, price, images, category_id, is_in_stock_item, stock_quantity, anticipation_days")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
@@ -154,6 +154,15 @@ export default async function Home() {
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-sage text-sm font-bold bg-lilaPastel/30">
                       Sin imagen
+                    </div>
+                  )}
+
+                  {/* Inventario agotado: aviso notorio sobre la foto */}
+                  {product.is_in_stock_item && Number(product.stock_quantity || 0) <= 0 && (
+                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                      <span className="bg-red-600 text-white text-sm font-extrabold uppercase tracking-wide px-4 py-2 rounded-full shadow-md">
+                        Sin Stock
+                      </span>
                     </div>
                   )}
                 </div>

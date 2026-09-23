@@ -49,7 +49,7 @@ export default async function TiendaPage({
   // 3. Construir la consulta de productos
   let productsQuery = supabase
     .from("products")
-    .select("id, name, slug, price, images, is_in_stock_item, category_id")
+    .select("id, name, slug, price, images, is_in_stock_item, stock_quantity, anticipation_days, category_id")
     .eq("is_active", true)
     .order("created_at", { ascending: false });
 
@@ -149,9 +149,16 @@ export default async function TiendaPage({
                     )}
                     
                     {/* Badge de Stock/Envío (Opcional) */}
-                    {product.is_in_stock_item && (
+                    {product.is_in_stock_item && Number(product.anticipation_days || 0) === 0 && Number(product.stock_quantity || 0) > 0 && (
                       <div className="absolute top-2 right-2 sm:top-3 sm:right-3 bg-sage text-white text-[9px] sm:text-[10px] uppercase font-bold px-2 py-0.5 sm:px-3 sm:py-1 rounded-full shadow-sm">
                         Envío Hoy
+                      </div>
+                    )}
+                    {product.is_in_stock_item && Number(product.stock_quantity || 0) <= 0 && (
+                      <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                        <span className="bg-red-600 text-white text-sm sm:text-base font-extrabold uppercase tracking-wide px-4 py-2 rounded-full shadow-md">
+                          Sin Stock
+                        </span>
                       </div>
                     )}
                   </div>

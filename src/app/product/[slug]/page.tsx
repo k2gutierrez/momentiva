@@ -124,6 +124,10 @@ export default async function ProductPage({
   );
   // La taza siempre se puede personalizar (aunque la casilla de complementos esté
   // apagada): su configurador es lo que la define.
+  // Inventario agotado: se muestra un aviso notorio y no se puede comprar.
+  const sinStock =
+    Boolean(product.is_in_stock_item) && Number(product.stock_quantity || 0) <= 0;
+
   const esTazaDelProducto = esTazaPersonalizada(product);
   const tituloPersonalizacion = esTazaDelProducto ? "Personaliza tu taza" : "Personaliza tu regalo";
 
@@ -186,6 +190,18 @@ export default async function ProductPage({
             </div>
 
             {/* FORMULARIO DINÁMICO Y BOTÓN DE CARRITO */}
+            {sinStock && (
+              <div className="mb-5 rounded-2xl border-2 border-red-200 bg-red-50 px-5 py-4 text-center">
+                <p className="text-lg font-extrabold text-red-600 tracking-wide">
+                  SIN STOCK
+                </p>
+                <p className="text-sm text-red-700 mt-1">
+                  Este producto se agotó por el momento. Escríbenos por WhatsApp y te
+                  avisamos en cuanto vuelva a estar disponible. 💜
+                </p>
+              </div>
+            )}
+
             <ProductOptionsForm 
               product={{
                 id: product.id,
@@ -199,6 +215,7 @@ export default async function ProductPage({
               blockedDates={blockedDates}
               tieneComplementos={product.is_custom_cup === true && !esProductoComplemento}
               editarId={editarId}
+              sinStock={sinStock}
             />
 
           </div>

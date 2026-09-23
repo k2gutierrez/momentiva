@@ -32,6 +32,8 @@ interface ProductOptionsFormProps {
   tieneComplementos?: boolean;
   /** Si viene, se está EDITANDO ese artículo del carrito. */
   editarId?: string;
+  /** Producto de inventario agotado. */
+  sinStock?: boolean;
 }
 
 export default function ProductOptionsForm({
@@ -40,6 +42,7 @@ export default function ProductOptionsForm({
   blockedDates = [],
   tieneComplementos = false,
   editarId,
+  sinStock = false,
 }: ProductOptionsFormProps) {
   // Estado para guardar lo que el cliente elige
   const [selections, setSelections] = useState<Record<string, string | boolean | string[]>>({});
@@ -211,6 +214,7 @@ export default function ProductOptionsForm({
           blockedDates={blockedDates}
           tieneComplementos={tieneComplementos}
           editarId={editarId}
+          sinStock={sinStock}
         />
       </div>
     </div>

@@ -23,6 +23,8 @@ interface AddToCartButtonProps {
   tieneComplementos?: boolean;
   /** Si viene, se está EDITANDO ese artículo del carrito (se reemplaza). */
   editarId?: string;
+  /** Producto de inventario agotado: no se puede comprar. */
+  sinStock?: boolean;
 }
 
 export default function AddToCartButton({
@@ -33,6 +35,7 @@ export default function AddToCartButton({
   blockedDates = [],
   tieneComplementos = false,
   editarId,
+  sinStock = false,
 }: AddToCartButtonProps) {
   const setCart = useSetAtom(cartItemsAtom);
   const setCartOpen = useSetAtom(cartOpenAtom);
@@ -129,10 +132,15 @@ export default function AddToCartButton({
   return (
     <button
       onClick={handleAddToCart}
-      className="w-full bg-[#3A243F] hover:bg-opacity-90 text-white font-bold py-5 rounded-2xl transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-3 text-lg mb-4"
+      disabled={sinStock}
+      className={`w-full font-bold py-5 rounded-2xl transition-all shadow-lg flex items-center justify-center gap-3 text-lg mb-4 ${
+        sinStock
+          ? "bg-gray-300 text-gray-500 cursor-not-allowed shadow-none"
+          : "bg-[#3A243F] hover:bg-opacity-90 text-white hover:shadow-xl"
+      }`}
     >
       <ShoppingCartIcon size={24} weight="bold" />
-      {editarId ? "Guardar cambios" : "Agregar al Carrito"}
+      {sinStock ? "Sin Stock" : editarId ? "Guardar cambios" : "Agregar al Carrito"}
     </button>
   );
 }

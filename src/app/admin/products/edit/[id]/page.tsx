@@ -311,19 +311,25 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Reglas y Logística</h3>
           <div className="flex items-center gap-4 mb-4">
             <input type="checkbox" id="stockToggle" checked={isStockItem} onChange={() => setIsStockItem(!isStockItem)} className="w-5 h-5 accent-terracota" />
-            <label htmlFor="stockToggle" className="font-bold text-berenjena">Es artículo en Stock</label>
+            <label htmlFor="stockToggle" className="font-bold text-berenjena">Es artículo en Stock (manejar inventario)</label>
           </div>
-          {isStockItem ? (
-            <div>
-              <label className="block text-sm font-bold text-berenjena mb-1">Cantidad en Inventario</label>
-              <input type="number" name="stockQuantity" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)} className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg bg-white" />
-            </div>
-          ) : (
+          <div className="space-y-4">
+            {isStockItem && (
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Cantidad en Inventario</label>
+                <input type="number" name="stockQuantity" value={stockQuantity} onChange={e => setStockQuantity(e.target.value)} className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg bg-white" />
+                <p className="text-xs text-gray-500 mt-1">Cuántas piezas hay. Al venderse, el inventario baja solo.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-bold text-berenjena mb-1">Días de Anticipación Requeridos</label>
               <input type="number" name="anticipationDays" value={anticipationDays} onChange={e => setAnticipationDays(e.target.value)} className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg bg-white" />
+              <p className="text-xs text-gray-500 mt-1">
+                <strong>0 = entrega inmediata</strong> (se puede elegir hoy mismo).
+                Con 1 o más, el calendario pedirá esos días de preparación.
+              </p>
             </div>
-          )}
+          </div>
           <div className="flex items-center gap-4 mt-6">
             <input type="checkbox" id="cupToggle" checked={isCustomCup} onChange={() => setIsCustomCup(!isCustomCup)} className="w-5 h-5 accent-terracota" />
             <label htmlFor="cupToggle" className="font-bold text-berenjena">Mostrar &quot;Complementa tu regalo&quot; y previsualizador de taza</label>

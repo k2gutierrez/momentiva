@@ -243,19 +243,25 @@ export default function NewProductPage() {
           <h3 className="text-xl font-bold text-berenjena border-b border-lilaPastel pb-2 mb-4">Reglas y Logística</h3>
           <div className="flex items-center gap-4 mb-4">
             <input type="checkbox" id="stockToggle" className="w-5 h-5 accent-terracota cursor-pointer" checked={isStockItem} onChange={() => setIsStockItem(!isStockItem)} />
-            <label htmlFor="stockToggle" className="font-bold text-berenjena cursor-pointer">Es artículo en Stock (Envío mismo día)</label>
+            <label htmlFor="stockToggle" className="font-bold text-berenjena cursor-pointer">Es artículo en Stock (manejar inventario)</label>
           </div>
-          {isStockItem ? (
-            <div>
-              <label className="block text-sm font-bold text-berenjena mb-1">Cantidad en Inventario</label>
-              <input type="number" name="stockQuantity" className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="0" />
-            </div>
-          ) : (
+          <div className="space-y-4">
+            {isStockItem && (
+              <div>
+                <label className="block text-sm font-bold text-berenjena mb-1">Cantidad en Inventario</label>
+                <input type="number" name="stockQuantity" className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="0" />
+                <p className="text-xs text-gray-500 mt-1">Cuántas piezas hay. Al venderse, el inventario baja solo.</p>
+              </div>
+            )}
             <div>
               <label className="block text-sm font-bold text-berenjena mb-1">Días de Anticipación Requeridos</label>
               <input type="number" name="anticipationDays" className="w-1/3 px-3 py-2 border border-lilaPastel rounded-lg focus:outline-none focus:ring-2 focus:ring-terracota bg-cream/30 text-berenjena" placeholder="Ej. 2" />
+              <p className="text-xs text-gray-500 mt-1">
+                <strong>0 = entrega inmediata</strong> (se puede elegir hoy mismo).
+                Con 1 o más, el calendario pedirá esos días de preparación.
+              </p>
             </div>
-          )}
+          </div>
           <div className="flex items-center gap-4 mt-6">
             <input type="checkbox" id="cupToggle" className="w-5 h-5 accent-terracota cursor-pointer" checked={isCustomCup} onChange={() => setIsCustomCup(!isCustomCup)} />
             <label htmlFor="cupToggle" className="font-bold text-berenjena cursor-pointer">Mostrar &quot;Complementa tu regalo&quot; y previsualizador de taza en este producto</label>
