@@ -109,6 +109,18 @@ export async function pagarPedidoConTarjeta(datos: {
     // En efectivo, Mercado Pago pide la ficha con la URL para pagar
     if (tipo === "ticket" || tipo === "atm") {
       cuerpo.payment_method_id = metodo;
+
+      // ⚠️ Mercado Pago por defecto deja el cupón de OXXO vigente ~3 SEMANAS
+      // (comprobado: se creó el 22-sep y vencía el 14-oct). Eso no sirve para una
+      // tienda que entrega en 2-3 días: aquí se limita a 24 HORAS.
+      // Si el cliente paga después de esa fecha, Mercado Pago le devuelve el dinero.
+      const horasVigencia = Number(process.env.OXXO_VIGENCIA_HORAS || 24);
+      const enMexico = new Date(Date.now() + horasVigencia * 60 * 60 * 1000).toLocaleString(
+        "sv-SE",
+        { timeZone: "America/Mexico_City" }
+      );
+      // Formato que pide Mercado Pago: 2026-09-23T23:59:59.000-06:00
+      cuerpo.date_of_expiration = `${enMexico.replace(" ", "T")}.000-06:00`;
     }
     if (correo) cuerpo.payer = { email: correo };
     const nombrePagador = datos.nombre || datos.nombreSuelto || "";

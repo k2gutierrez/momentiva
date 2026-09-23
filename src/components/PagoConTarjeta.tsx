@@ -199,7 +199,7 @@ export default function PagoConTarjeta({
     <div className="bg-white rounded-2xl border border-lilaPastel p-5">
       <h3 className="flex items-center gap-2 font-bold text-berenjena mb-4">
         <CreditCardIcon size={20} weight="bold" className="text-terracota" />
-        Paga aquí con tu tarjeta
+        Paga aquí mismo
       </h3>
 
       {cargando && !error && (
@@ -216,6 +216,12 @@ export default function PagoConTarjeta({
       )}
 
       <div id="contenedor-pago-tarjeta" ref={contenedor} />
+
+      <p className="text-[11px] text-gray-500 leading-relaxed mt-3 bg-cream/60 rounded-xl px-3 py-2">
+        💳 <strong>Con tarjeta</strong> el pago se confirma al instante (recomendado).
+        🏪 <strong>En efectivo (OXXO)</strong> se confirma unas horas después de que lo pagues
+        en la tienda, y el código <strong>vence en 24 horas</strong>.
+      </p>
 
       <button
         type="button"
