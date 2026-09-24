@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 
 interface ProductGalleryProps {
   images: string[];
@@ -27,7 +28,14 @@ export default function ProductGallery({ images, name }: ProductGalleryProps) {
       {/* Imagen principal */}
       <div className="relative aspect-[4/5] bg-[#F5EFF6] rounded-3xl overflow-hidden shadow-sm">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={current} alt={name} className="w-full h-full object-cover" />
+        <Image
+          src={current}
+          alt={name}
+          fill
+          sizes="(max-width: 1024px) 100vw, 50vw"
+          className="object-cover"
+          priority
+        />
       </div>
 
       {/* Miniaturas (si hay más de una foto) */}
@@ -46,7 +54,13 @@ export default function ProductGallery({ images, name }: ProductGalleryProps) {
               aria-label={`Ver foto ${idx + 1}`}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={src} alt={`${name} - foto ${idx + 1}`} className="w-full h-full object-cover" />
+              <Image
+                src={src}
+                alt={`${name} - foto ${idx + 1}`}
+                fill
+                sizes="80px"
+                className="object-cover"
+              />
             </button>
           ))}
         </div>

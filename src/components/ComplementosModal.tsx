@@ -24,6 +24,7 @@ import {
 } from "@/lib/complementosCliente";
 import { esTazaPersonalizada } from "@/lib/complementos";
 import CupPreviewer from "@/components/CupPreviewer";
+import Image from "next/image";
 
 /**
  * Modal de complementos (estilo enviaflores).
@@ -156,13 +157,15 @@ export default function ComplementosModal() {
             ) : (
               /* Complemento normal: su información y agregar */
               <div className="max-w-md mx-auto text-center">
-                <div className="aspect-square bg-cream rounded-2xl overflow-hidden mb-4">
+                <div className="relative aspect-square bg-cream rounded-2xl overflow-hidden mb-4">
                   {seleccionado.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img
+                    <Image
                       src={seleccionado.images[0]}
                       alt={seleccionado.name}
-                      className="w-full h-full object-cover"
+                      fill
+                      sizes="(max-width: 768px) 90vw, 420px"
+                      className="object-cover"
                     />
                   ) : (
                     <span className="text-xs text-sage font-bold">Sin imagen</span>
@@ -230,13 +233,15 @@ export default function ComplementosModal() {
                   onClick={() => setSeleccionado(comp)}
                   className="group flex flex-col rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all text-left"
                 >
-                  <div className="aspect-square bg-cream overflow-hidden">
+                  <div className="relative aspect-square bg-cream overflow-hidden">
                     {comp.images?.[0] ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <Image
                         src={comp.images[0]}
                         alt={comp.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        fill
+                        sizes="(max-width: 768px) 45vw, 200px"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
                     ) : (
                       <span className="text-xs text-sage font-bold">Sin imagen</span>

@@ -34,11 +34,18 @@ const nextConfig = {
     },
   },
   images: {
+    // ⚡ Las fotos se sirven desde el dominio de la tienda (momentiva.com.mx) en vez de
+    // ir directo a Supabase: el servidor las pide UNA vez, las guarda y las entrega ya
+    // reducidas y en formato moderno (WebP). Así Supabase deja de recibir una descarga
+    // por cada visita (era lo que estaba agotando la cuota del plan gratis) y la tienda
+    // carga mucho más rápido, sobre todo en celular.
+    minimumCacheTTL: 31536000, // el navegador guarda cada foto 1 año
+    formats: ["image/webp"],
     remotePatterns: [
       {
         protocol: "https",
         hostname: "mvsabrcqhpwenamlqcux.supabase.co",
-        port: "",
+        pathname: "/storage/v1/object/public/**",
       },
     ],
   },

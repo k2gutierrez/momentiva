@@ -7,6 +7,7 @@ import InstagramFeed from "@/components/InstagramFeed";
 import Link from "next/link";
 import Footer from "@/components/Footer";
 import { idsDeCategoriasComplementos } from "@/lib/complementos";
+import Image from "next/image";
 
 export const dynamic = 'force-dynamic';
 
@@ -146,10 +147,12 @@ export default async function Home() {
               >
                 <div className="relative h-64 md:h-72 bg-cream overflow-hidden rounded-xl">
                   {product.images && product.images.length > 0 ? (
-                    <img
+                    <Image
                       src={product.images[0]}
                       alt={product.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      fill
+                      sizes="(max-width: 768px) 50vw, 25vw"
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-sage text-sm font-bold bg-lilaPastel/30">

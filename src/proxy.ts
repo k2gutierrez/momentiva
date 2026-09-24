@@ -2,11 +2,23 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function proxy(request: NextRequest) {
-  // El optimizador de imágenes de Next no se usa en este proyecto (todas las
-  // imágenes son <img>). Se bloquea porque es la puerta de entrada de varias
-  // vulnerabilidades conocidas de sharp/libvips (AVIF, SVG) y no aporta nada.
+  // El optimizador de imágenes SÍ se usa ahora: las fotos se sirven desde el dominio
+  // de la tienda con caché de 1 año (antes iban directo a Supabase y cada visita las
+  // volvía a descargar, lo que agotó la cuota del plan gratis).
+  //
+  // Se mantiene protegido: solo se permite optimizar imágenes de NUESTRO propio
+  // almacenamiento público; cualquier otra dirección se rechaza. Además el proyecto
+  // usa únicamente WebP (sin AVIF) y no permite SVG, que es donde estaban las
+  // vulnerabilidades conocidas de sharp/libvips.
   if (request.nextUrl.pathname.startsWith("/_next/image")) {
-    return new NextResponse("Not found", { status: 404 });
+    const destino = request.nextUrl.searchParams.get("url") || "";
+    const esNuestra =
+      destino.startsWith("/") ||
+      /^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\//i.test(destino);
+    if (!esNuestra) {
+      return new NextResponse("Not found", { status: 404 });
+    }
+    return NextResponse.next();
   }
 
   let response = NextResponse.next({
