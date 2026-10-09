@@ -46,7 +46,7 @@ export default function ProductGallery({ images, name }: ProductGalleryProps) {
               key={idx}
               type="button"
               onClick={() => setSelectedIndex(idx)}
-              className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
+              className={`relative shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
                 idx === selectedIndex
                   ? "border-terracota shadow-md"
                   : "border-lilaPastel opacity-70 hover:opacity-100"
