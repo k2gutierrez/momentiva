@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { optimizarImagenArchivo } from "@/lib/optimizarImagen";
 import { extensionImagenSegura } from "@/lib/archivos";
 
 export async function createCarouselSlide(formData: FormData) {
@@ -28,11 +29,19 @@ export async function createCarouselSlide(formData: FormData) {
         throw new Error(`"${file.name}" pesa más de 5MB. Por favor, comprímela o expórtala en menor resolución.`);
       }
       // Se valida el contenido real: los banners son SVG/PNG/WebP según el diseño
-      const fileExt = await extensionImagenSegura(file, { permitirSvg: true });
-      const fileName = `${prefix}-${Date.now()}.${fileExt}`;
+      await extensionImagenSegura(file, { permitirSvg: true });
+
+      // Los banners también se optimizan al subirlos: antes se podía subir un SVG de
+      // 5 MB que luego bajaba cada visitante. Si el archivo es SVG, se convierte a
+      // imagen normal (PNG/JPG) ya reducida.
+      const optimizada = await optimizarImagenArchivo(file);
+      const fileName = `${prefix}-${Date.now()}.${optimizada.extension}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(fileName, file);
+        .upload(fileName, optimizada.datos, {
+          contentType: optimizada.contentType,
+          cacheControl: "31536000",
+        });
 
       if (uploadError) throw new Error(`Error al subir "${file.name}": ${uploadError.message}`);
 
@@ -123,11 +132,19 @@ export async function updateCarouselSlideImages(id: string, formData: FormData) 
         throw new Error(`"${file.name}" pesa más de 5MB. Por favor, comprímela o expórtala en menor resolución.`);
       }
       // Se valida el contenido real: los banners son SVG/PNG/WebP según el diseño
-      const fileExt = await extensionImagenSegura(file, { permitirSvg: true });
-      const fileName = `${prefix}-${Date.now()}.${fileExt}`;
+      await extensionImagenSegura(file, { permitirSvg: true });
+
+      // Los banners también se optimizan al subirlos: antes se podía subir un SVG de
+      // 5 MB que luego bajaba cada visitante. Si el archivo es SVG, se convierte a
+      // imagen normal (PNG/JPG) ya reducida.
+      const optimizada = await optimizarImagenArchivo(file);
+      const fileName = `${prefix}-${Date.now()}.${optimizada.extension}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(fileName, file);
+        .upload(fileName, optimizada.datos, {
+          contentType: optimizada.contentType,
+          cacheControl: "31536000",
+        });
 
       if (uploadError) throw new Error(`Error al subir "${file.name}": ${uploadError.message}`);
 

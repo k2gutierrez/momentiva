@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { revalidatePath } from "next/cache";
 import { marcaTiempoDeSlug, slugDeProducto, slugify } from "@/lib/slug";
 import { requireAdmin } from "@/lib/auth/requireAdmin";
+import { optimizarImagenArchivo } from "@/lib/optimizarImagen";
 import { extensionImagenSegura } from "@/lib/archivos";
 
 /**
@@ -55,13 +56,20 @@ export async function createProduct(formData: FormData) {
         throw new Error(`"${imageFile.name}" pesa más de 5MB. Por favor, comprímela.`);
       }
       // Se valida el contenido real del archivo, no la extensión del nombre
-      const fileExt = await extensionImagenSegura(imageFile);
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      await extensionImagenSegura(imageFile);
+
+      // Se optimiza ANTES de guardarla: la foto de un celular pesa 2-4 MB y viene
+      // enorme; así el catálogo se mantiene ligero y la tienda carga rápido.
+      const optimizada = await optimizarImagenArchivo(imageFile);
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${optimizada.extension}`;
       const filePath = `public/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(filePath, imageFile);
+        .upload(filePath, optimizada.datos, {
+          contentType: optimizada.contentType,
+          cacheControl: "31536000",
+        });
 
       if (uploadError) throw new Error(`Error uploading image: ${uploadError.message}`);
 
@@ -139,13 +147,20 @@ export async function updateProduct(id: string, formData: FormData) {
         throw new Error(`"${imageFile.name}" pesa más de 5MB. Por favor, comprímela.`);
       }
       // Se valida el contenido real del archivo, no la extensión del nombre
-      const fileExt = await extensionImagenSegura(imageFile);
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      await extensionImagenSegura(imageFile);
+
+      // Se optimiza ANTES de guardarla: la foto de un celular pesa 2-4 MB y viene
+      // enorme; así el catálogo se mantiene ligero y la tienda carga rápido.
+      const optimizada = await optimizarImagenArchivo(imageFile);
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${optimizada.extension}`;
       const filePath = `public/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from("product-images")
-        .upload(filePath, imageFile);
+        .upload(filePath, optimizada.datos, {
+          contentType: optimizada.contentType,
+          cacheControl: "31536000",
+        });
 
       if (uploadError) throw new Error(`Error subiendo imagen: ${uploadError.message}`);
 
