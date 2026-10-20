@@ -6,6 +6,7 @@ import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { complementosModalAbiertoAtom } from "@/store/complementosStore";
 import { ShoppingCartIcon } from "@phosphor-icons/react/dist/ssr";
 import { toast } from "sonner";
+import { metaTrack, montoMeta } from "@/lib/metaPixel";
 
 interface AddToCartButtonProps {
   product: {
@@ -116,6 +117,16 @@ export default function AddToCartButton({
           deliveryTime,
         },
       ];
+    });
+
+    // ── Píxel de Meta: agregó un producto ──
+    metaTrack("AddToCart", {
+      content_ids: [String(product.id)],
+      content_name: product.name,
+      content_type: "product",
+      value: montoMeta(Number(product.price) || 0),
+      currency: "MXN",
+      num_items: 1,
     });
 
     toast.success("Producto agregado al carrito");

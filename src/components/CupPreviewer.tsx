@@ -8,6 +8,7 @@ import { cartItemsAtom, cartOpenAtom, type CartItem } from "@/store/cartStore";
 import { entregaSeleccionadaAtom } from "@/store/complementosStore";
 import { useAtom, useAtomValue } from "jotai";
 import { toast } from "sonner";
+import { metaTrack, montoMeta } from "@/lib/metaPixel";
 import { comprimirImagen } from "@/lib/imagen";
 import type { AjusteTaza } from "./CupCanvas";
 
@@ -83,6 +84,16 @@ export default function CupPreviewer({
       opciones["Ajuste de la foto"] =
         `posición ${vista.ajuste.x},${vista.ajuste.y} · escala ${Math.round(vista.ajuste.escala * 100)}% · rotación ${vista.ajuste.rotacion}°`;
     }
+
+    // ── Píxel de Meta: agregó la taza personalizada ──
+    metaTrack("AddToCart", {
+      content_ids: [String(producto.id)],
+      content_name: producto.name,
+      content_type: "product",
+      value: montoMeta(Number(producto.price) || 0),
+      currency: "MXN",
+      num_items: 1,
+    });
 
     setCart((prev: CartItem[]) => [
       ...prev,

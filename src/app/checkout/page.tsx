@@ -3,6 +3,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useAtom, useAtomValue } from "jotai";
 import { cartItemsAtom, cartSubtotalAtom } from "@/store/cartStore";
+import { MetaInitiateCheckout } from "@/components/MetaEventos";
 import { userProfileAtom } from "@/store/authStore";
 import Header from "@/components/Header";
 import { createClient } from "@/lib/supabase/client";
@@ -364,9 +365,17 @@ export default function CheckoutPage() {
   const deliveryFee = deliveryZone ? deliveryZone.delivery_cost : 0;
   const totalAmount = Math.max(0, subtotal - discountAmount) + deliveryFee;
 
+  // ── Píxel de Meta: artículos del carrito para registrar "empezó a pagar" ──
+  const metaArticulos = cart.map((i) => ({
+    id: String(i.productId),
+    cantidad: i.quantity,
+    precio: i.unitPrice,
+  }));
+
   return (
     <div className="min-h-screen bg-cream font-sans pb-20">
       <Header />
+        <MetaInitiateCheckout articulos={metaArticulos} valor={totalAmount} />
 
       <main className="max-w-7xl mx-auto px-8 py-12 animate-fade-in-up">
         <div className="flex items-center gap-4 mb-8">

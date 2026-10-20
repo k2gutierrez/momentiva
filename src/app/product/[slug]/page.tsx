@@ -8,6 +8,7 @@ import { esCategoriaComplementos, esTazaPersonalizada } from "@/lib/complementos
 import ProductOptionsForm from "@/components/ProductOptionsForm";
 import ProductTabs from "@/components/ProductTabs";
 import ProductGallery from "@/components/ProductGallery";
+import { MetaViewContent } from "@/components/MetaEventos";
 import Link from "next/link";
 import { ShieldCheckIcon, SparkleIcon } from "@phosphor-icons/react/dist/ssr";
 
@@ -201,6 +202,15 @@ export default async function ProductPage({
                 </p>
               </div>
             )}
+
+            <MetaViewContent
+              producto={{
+                id: String(product.id),
+                nombre: product.name || "",
+                precio: Number(product.price) || 0,
+                categoria: categoryName || undefined,
+              }}
+            />
 
             <ProductOptionsForm 
               product={{

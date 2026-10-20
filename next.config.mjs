@@ -10,10 +10,10 @@
 // las violaciones en la consola y después se aplica.
 const csp = [
   "default-src 'self'",
-  "img-src 'self' data: blob: https:",
+  "img-src 'self' data: blob: https: https://www.facebook.com",
   "style-src 'self' 'unsafe-inline'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://www.mercadopago.com https://widgets.sociablekit.com",
-  "connect-src 'self' https: wss:",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://sdk.mercadopago.com https://www.mercadopago.com https://widgets.sociablekit.com https://connect.facebook.net",
+  "connect-src 'self' https: wss: https://connect.facebook.net https://www.facebook.com",
   "frame-src 'self' https://www.mercadopago.com https://www.mercadolibre.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",

@@ -6,6 +6,7 @@ import { Toaster } from 'sonner';
 import AuthProvider from "@/components/AuthProvider";
 import CartDrawer from "@/components/CartDrawer";
 import ComplementosModal from "@/components/ComplementosModal";
+import MetaPixel from "@/components/MetaPixel";
 import { WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
 
 // Initialize fonts
@@ -37,6 +38,9 @@ export default function RootLayout({
             <CartDrawer />
         <ComplementosModal />
             <Toaster position="bottom-right" richColors />
+
+            {/* Píxel de Meta: mide visitas y conversiones para las campañas */}
+            <MetaPixel />
 
             <div className="flex flex-col min-h-screen">
               <main className="flex-grow">{children}</main>

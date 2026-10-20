@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ClearCartOnMount from "@/components/ClearCartOnMount";
+import { MetaPurchase } from "@/components/MetaEventos";
 import { confirmMercadoPagoPayment } from "@/actions/checkout";
 import Link from "next/link";
 import { CheckCircleIcon, ClockIcon } from "@phosphor-icons/react/dist/ssr";

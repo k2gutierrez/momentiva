@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import { useAtom, useSetAtom, useAtomValue } from "jotai";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { metaTrack, montoMeta } from "@/lib/metaPixel";
 import {
   XIcon,
   PlusCircleIcon,
@@ -84,6 +85,17 @@ export default function ComplementosModal() {
   const despuesDeAgregar = (comp: ComplementoSugerido, mensaje?: string) => {
     setAgregados((prev) => (prev.includes(comp.id) ? prev : [...prev, comp.id]));
     setSeleccionado(null);
+
+    // ── Píxel de Meta: agregó un complemento ──
+    metaTrack("AddToCart", {
+      content_ids: [String(comp.id)],
+      content_name: comp.name,
+      content_type: "product",
+      value: montoMeta(Number(comp.price) || 0),
+      currency: "MXN",
+      num_items: 1,
+    });
+
     if (mensaje) toast.success(mensaje);
   };
 

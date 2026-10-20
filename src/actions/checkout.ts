@@ -711,7 +711,15 @@ export async function confirmMercadoPagoPayment(paymentId: string) {
 
     revalidatePath("/admin/orders");
     revalidatePath("/mi-cuenta");
-    return { success: true, status: info.status, orderId: info.externalReference };
+    return {
+      success: true,
+      status: info.status,
+      orderId: info.externalReference,
+      // Se devuelve el total para poder registrar la compra en el píxel de Meta.
+      total: Number(
+        (pedidoPrevio as { total_amount?: number } | null)?.total_amount ?? 0
+      ),
+    };
   } catch (error: unknown) {
     return { success: false, error: error instanceof Error ? error.message : "Error desconocido" };
   }
