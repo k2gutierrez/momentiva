@@ -1,4 +1,5 @@
 import React from 'react';
+import Link from 'next/link';
 import { FacebookLogoIcon, InstagramLogoIcon, YoutubeLogoIcon } from "@phosphor-icons/react/dist/ssr";
 
 export default function Footer() {
@@ -19,9 +20,17 @@ export default function Footer() {
           </a>
         </div>
 
-        {/* Copyright */}
+        {/* Legal + Copyright */}
         <div className="text-center md:text-right text-sm text-white/90">
-          © {new Date().getFullYear()} <strong>Momentiva</strong>. Todos los derechos reservados. Guadalajara, Jal. México
+          <Link
+            href="/aviso-de-privacidad"
+            className="underline hover:text-terracota transition-colors"
+          >
+            Aviso de privacidad
+          </Link>
+          <span className="mx-2 text-white/40">·</span>
+          © {new Date().getFullYear()} <strong>Momentiva</strong>. Todos los derechos reservados.
+          Guadalajara, Jal. México
         </div>
         
       </div>

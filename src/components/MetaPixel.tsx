@@ -2,27 +2,34 @@
 
 import Script from "next/script";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { META_PIXEL_ID } from "@/lib/metaPixel";
+import { EVENTO_CONSENTIMIENTO, permiteMedicion } from "@/lib/cookies";
 
 /**
  * Píxel de Meta.
  *
- * - Instala el código base en todas las páginas (una sola vez).
- * - Registra una vista de página (PageView) al entrar y cada vez que se navega dentro
- *   de la tienda sin recargar (el código base ya cuenta la primera).
- *
- * Si no hay identificador configurado, no se muestra nada.
+ * - Solo se activa si la clienta ACEPTÓ las cookies de medición (aviso de cookies).
+ *   Si eligió "solo las necesarias", no se carga nada de Meta.
+ * - Instala el código base una sola vez y registra una vista de página (PageView) al
+ *   entrar y cada vez que se navega dentro de la tienda sin recargar.
  */
 export default function MetaPixel() {
   const pathname = usePathname();
+  const [permitido, setPermitido] = useState(false);
   const ultimaRegistrada = useRef<string | null>(null);
 
+  // Se revisa el permiso al cargar y cada vez que la clienta cambia su decisión.
   useEffect(() => {
-    if (!META_PIXEL_ID) return;
-    // La primera pantalla ya la cuenta el código base con su PageView; de ahí en
-    // adelante se registra cada cambio de página (navegación sin recargar).
-    // Se compara con la última registrada para no contar dos veces la misma.
+    const revisar = () => setPermitido(permiteMedicion());
+    revisar();
+    window.addEventListener(EVENTO_CONSENTIMIENTO, revisar);
+    return () => window.removeEventListener(EVENTO_CONSENTIMIENTO, revisar);
+  }, []);
+
+  // Vista de página al navegar dentro de la tienda (sin duplicar la misma pantalla).
+  useEffect(() => {
+    if (!META_PIXEL_ID || !permitido) return;
     if (ultimaRegistrada.current === null) {
       ultimaRegistrada.current = pathname;
       return;
@@ -32,9 +39,9 @@ export default function MetaPixel() {
     if (typeof window !== "undefined" && typeof window.fbq === "function") {
       window.fbq("track", "PageView");
     }
-  }, [pathname]);
+  }, [pathname, permitido]);
 
-  if (!META_PIXEL_ID) return null;
+  if (!META_PIXEL_ID || !permitido) return null;
 
   return (
     <>

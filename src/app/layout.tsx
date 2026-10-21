@@ -7,6 +7,7 @@ import AuthProvider from "@/components/AuthProvider";
 import CartDrawer from "@/components/CartDrawer";
 import ComplementosModal from "@/components/ComplementosModal";
 import MetaPixel from "@/components/MetaPixel";
+import ConsentimientoCookies from "@/components/ConsentimientoCookies";
 import { WhatsappLogoIcon } from "@phosphor-icons/react/dist/ssr";
 
 // Initialize fonts
@@ -41,6 +42,7 @@ export default function RootLayout({
 
             {/* Píxel de Meta: mide visitas y conversiones para las campañas */}
             <MetaPixel />
+            <ConsentimientoCookies />
 
             <div className="flex flex-col min-h-screen">
               <main className="flex-grow">{children}</main>
