@@ -65,10 +65,29 @@ interface OrderRow {
     | null;
 }
 
+interface OfflineProduct {
+  id: string;
+  name: string;
+  price: number;
+  is_active: boolean;
+  is_in_stock_item: boolean | null;
+  stock_quantity: number | null;
+}
+
+interface OfflineLine {
+  key: string;
+  productId: string;
+  quantity: string;
+  unitPrice: string;
+}
+
 export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [offlineProducts, setOfflineProducts] = useState<OfflineProduct[]>([]);
+  const [offlineLines, setOfflineLines] = useState<OfflineLine[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
@@ -99,6 +118,32 @@ export default function AdminOrdersPage() {
     fetchOrders();
   }, []);
 
+  // Productos activos para el formulario de venta externa
+  useEffect(() => {
+    if (!isModalOpen) return;
+
+    let cancelado = false;
+    const cargarProductos = async () => {
+      setIsLoadingProducts(true);
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("products")
+        .select("id, name, price, is_active, is_in_stock_item, stock_quantity")
+        .eq("is_active", true)
+        .order("name");
+
+      if (cancelado) return;
+      if (error) toast.error("No se pudieron cargar los productos");
+      setOfflineProducts((data as OfflineProduct[]) ?? []);
+      setIsLoadingProducts(false);
+    };
+
+    cargarProductos();
+    return () => {
+      cancelado = true;
+    };
+  }, [isModalOpen]);
+
   const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
     const result = await updateOrderStatus(orderId, newStatus);
     if (result.success) {
@@ -109,23 +154,93 @@ export default function AdminOrdersPage() {
     }
   };
 
+  const nuevaLinea = (): OfflineLine => ({
+    key:
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    productId: "",
+    quantity: "1",
+    unitPrice: "",
+  });
+
+  const abrirModalVenta = () => {
+    setOfflineLines([nuevaLinea()]);
+    setIsModalOpen(true);
+  };
+
+  const actualizarLinea = (key: string, cambios: Partial<OfflineLine>) => {
+    setOfflineLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...cambios } : l)));
+  };
+
+  const cambiarProductoDeLinea = (key: string, productId: string) => {
+    const producto = offlineProducts.find((p) => p.id === productId);
+    actualizarLinea(key, {
+      productId,
+      unitPrice: producto ? String(producto.price ?? "") : "",
+    });
+  };
+
+  const agregarLinea = () => {
+    setOfflineLines((prev) => [...prev, nuevaLinea()]);
+  };
+
+  const quitarLinea = (key: string) => {
+    setOfflineLines((prev) => (prev.length <= 1 ? prev : prev.filter((l) => l.key !== key)));
+  };
+
+  const totalVenta = offlineLines.reduce(
+    (suma, linea) => suma + (Number(linea.unitPrice) || 0) * (Number(linea.quantity) || 0),
+    0
+  );
+
   const handleOfflineSaleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setIsSubmitting(true);
 
-    const formData = new FormData(e.currentTarget);
-    const result = await createOfflineSale(formData);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    const customerName = String(formData.get("customerName") || "").trim();
+    const deliveryDate = String(formData.get("deliveryDate") || "");
+    const notes = String(formData.get("notes") || "").trim();
+
+    const items = offlineLines
+      .filter((linea) => linea.productId)
+      .map((linea) => ({
+        productId: linea.productId,
+        quantity: Math.floor(Number(linea.quantity)),
+        unitPrice: Math.round((Number(linea.unitPrice) || 0) * 100) / 100,
+      }));
+
+    if (items.length === 0) {
+      toast.error("Agrega al menos un producto a la venta.");
+      return;
+    }
+    if (!customerName) {
+      toast.error("Escribe el nombre del cliente.");
+      return;
+    }
+    if (items.some((item) => !Number.isFinite(item.quantity) || item.quantity < 1)) {
+      toast.error("Revisa las cantidades: deben ser al menos 1.");
+      return;
+    }
+    if (items.some((item) => !Number.isFinite(item.unitPrice) || item.unitPrice < 0)) {
+      toast.error("Revisa los precios: no pueden ser negativos.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await createOfflineSale({ customerName, deliveryDate, notes, items });
+    setIsSubmitting(false);
 
     if (result.success) {
       toast.success("Venta externa registrada correctamente");
       setIsModalOpen(false);
-      (e.target as HTMLFormElement).reset();
+      setOfflineLines([nuevaLinea()]);
+      form.reset();
       refreshOrders();
     } else {
       toast.error(result.error || "Error al registrar la venta");
     }
-
-    setIsSubmitting(false);
   };
 
   return (
@@ -144,7 +259,7 @@ export default function AdminOrdersPage() {
           </p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={abrirModalVenta}
           className="flex items-center gap-2 bg-terracota hover:bg-opacity-90 text-white px-6 py-3 rounded-lg shadow-md transition-colors font-bold"
         >
           <PlusIcon size={20} weight="bold" />
@@ -422,13 +537,13 @@ export default function AdminOrdersPage() {
       {/* Modal to Register Offline Sale[cite: 1] */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-berenjena/40 backdrop-blur-sm p-4">
-          <div className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden border border-lilaPastel p-8 animate-fade-in-up">
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl border border-lilaPastel p-8 animate-fade-in-up">
             <h3 className="text-2xl font-bold text-berenjena mb-4 flex items-center gap-2">
               <StorefrontIcon size={24} className="text-terracota" />
               Registrar Venta Externa (Offline)
             </h3>
             <p className="text-gray-500 text-sm mb-6">
-              Ingresa los datos de una venta hecha fuera de la web para mantener el inventario y los márgenes financieros actualizados[cite: 1].
+              Registra una venta hecha fuera de la web con sus productos. El inventario y el margen se actualizan solos.
             </p>
 
             <form onSubmit={handleOfflineSaleSubmit} className="space-y-4">
@@ -437,15 +552,114 @@ export default function AdminOrdersPage() {
                 <input type="text" name="customerName" required className="w-full px-3 py-2 border border-lilaPastel rounded-lg bg-cream/30 text-berenjena focus:ring-2 focus:ring-terracota" placeholder="Nombre completo" />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-bold text-berenjena mb-1">Ingreso Total ($)</label>
-                  <input type="number" step="0.01" name="totalAmount" required className="w-full px-3 py-2 border border-lilaPastel rounded-lg bg-cream/30 text-berenjena focus:ring-2 focus:ring-terracota" placeholder="0.00" />
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-bold text-berenjena">Productos vendidos</label>
+                  <button
+                    type="button"
+                    onClick={agregarLinea}
+                    className="text-sm font-bold text-terracota hover:underline"
+                  >
+                    + Agregar producto
+                  </button>
                 </div>
+
+                {isLoadingProducts ? (
+                  <p className="text-sm text-gray-500">Cargando productos…</p>
+                ) : offlineProducts.length === 0 ? (
+                  <p className="text-sm font-semibold text-red-600">
+                    No hay productos activos. Activa uno en Productos para poder registrar la venta.
+                  </p>
+                ) : (
+                  <div className="space-y-3">
+                    {offlineLines.map((linea) => {
+                      const producto = offlineProducts.find((p) => p.id === linea.productId);
+                      const stock = producto?.is_in_stock_item
+                        ? Math.max(0, Number(producto.stock_quantity) || 0)
+                        : null;
+                      const cantidad = Number(linea.quantity) || 0;
+
+                      return (
+                        <div key={linea.key} className="rounded-xl border border-lilaPastel bg-cream/20 p-3 space-y-2">
+                          <div className="flex gap-2">
+                            <select
+                              value={linea.productId}
+                              onChange={(e) => cambiarProductoDeLinea(linea.key, e.target.value)}
+                              className="flex-1 px-3 py-2 border border-lilaPastel rounded-lg bg-white text-berenjena focus:ring-2 focus:ring-terracota text-sm"
+                            >
+                              <option value="">Elige un producto…</option>
+                              {offlineProducts.map((p) => {
+                                const yaElegido = offlineLines.some(
+                                  (l) => l.key !== linea.key && l.productId === p.id
+                                );
+                                return (
+                                  <option key={p.id} value={p.id} disabled={yaElegido}>
+                                    {p.name}
+                                    {p.is_in_stock_item
+                                      ? ` · ${Math.max(0, Number(p.stock_quantity) || 0)} en stock`
+                                      : ""}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={() => quitarLinea(linea.key)}
+                              disabled={offlineLines.length <= 1}
+                              className="px-3 text-gray-400 hover:text-red-500 disabled:opacity-30 font-bold"
+                              title="Quitar producto"
+                            >
+                              ✕
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-bold text-berenjena mb-1">Cantidad</label>
+                              <input
+                                type="number"
+                                min={1}
+                                max={20}
+                                step={1}
+                                value={linea.quantity}
+                                onChange={(e) => actualizarLinea(linea.key, { quantity: e.target.value })}
+                                className="w-full px-3 py-2 border border-lilaPastel rounded-lg bg-white text-berenjena focus:ring-2 focus:ring-terracota text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold text-berenjena mb-1">Precio unitario ($)</label>
+                              <input
+                                type="number"
+                                min={0}
+                                step="0.01"
+                                value={linea.unitPrice}
+                                onChange={(e) => actualizarLinea(linea.key, { unitPrice: e.target.value })}
+                                className="w-full px-3 py-2 border border-lilaPastel rounded-lg bg-white text-berenjena focus:ring-2 focus:ring-terracota text-sm"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+
+                          {stock !== null && cantidad > stock && (
+                            <p className="text-xs font-bold text-red-600">
+                              Solo hay {stock} en inventario de este producto.
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl bg-cream/50 px-4 py-3">
                 <div>
-                  <label className="block text-sm font-bold text-berenjena mb-1">Costo Bruto ($)[cite: 1]</label>
-                  <input type="number" step="0.01" name="totalCost" required className="w-full px-3 py-2 border border-lilaPastel rounded-lg bg-cream/30 text-berenjena focus:ring-2 focus:ring-terracota" placeholder="0.00" />
+                  <p className="font-bold text-berenjena">Total de la venta</p>
+                  <p className="text-xs text-gray-500">
+                    El costo interno se calcula solo, con el costo de cada producto.
+                  </p>
                 </div>
+                <p className="text-2xl font-bold text-terracota">${totalVenta.toFixed(2)}</p>
               </div>
 
               <div>
